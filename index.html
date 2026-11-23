@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beat Meter Maker</title>
+
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+<header>
+  <h1><i class="logo"></i>Beat Meter Maker</h1>
+  <span class="hint" id="status">파일을 창에 끌어다 놓으면 시작합니다 (영상·음악·프로젝트 .json)</span>
+  <div class="sp"></div>
+  <button id="btnSave" class="ghost"><svg class="i" aria-hidden="true"><use href="#i-save"/></svg><span>프로젝트 저장</span></button>
+  <button id="btnLoad" class="ghost"><svg class="i" aria-hidden="true"><use href="#i-open"/></svg><span>프로젝트 열기</span></button>
+  <button class="pri" id="btnExport"><svg class="i" aria-hidden="true"><use href="#i-export"/></svg><span>영상 내보내기</span></button>
+  <button id="btnAbout" class="ghost" title="버전·저작자·라이선스"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg><span>정보</span></button>
+</header>
+<main>
+<aside>
+  <div class="tabs">
+    <button class="on" data-tab="tSrc">소스</button><button data-tab="tBeat">비트</button><button data-tab="tCut">편집</button><button data-tab="tLay">화면</button><button data-tab="tStyle">스타일</button><button data-tab="tOut">출력</button>
+  </div>
+
+  <div class="tab on" id="tSrc">
+    <div class="drop" id="dropMusic"><svg class="i" aria-hidden="true"><use href="#i-music"/></svg><div class="dt">음악 추가</div><div class="hint">오디오·영상 파일 · 여러 개 선택 가능 · 끌어다 놓아도 됨</div><div class="hint" id="musicName">없음</div></div>
+    <ul class="clips" id="songList" style="max-height:110px"></ul>
+    <div class="row"><label>음악 볼륨</label><input type="range" id="musicVol" min="0" max="150" step="1" value="100"><span class="v" id="vMusicVol">100%</span></div>
+    <div class="sub" style="margin-top:10px">영상 길이</div>
+    <div class="row"><label>길이 기준</label><select id="durMode"><option value="auto">자동 (음악 끝까지)</option><option value="manual">직접 지정</option></select></div>
+    <div class="row"><label>길이(초)</label><input type="number" id="durSec" step="0.1" min="1"><button id="durNow" title="재생 위치를 영상 끝으로">현재 위치까지</button></div>
+    <div class="info" id="durInfo"></div>
+    <div class="hint">타임라인의 '끝' 선을 끌어서 정할 수도 있습니다. 음악이 길이보다 짧으면 나머지는 무음, 길면 잘립니다.</div>
+    <div style="height:14px"></div>
+    <div class="drop" id="dropClips"><svg class="i" aria-hidden="true"><use href="#i-film"/></svg><div class="dt">영상 클립 추가</div><div class="hint">여러 개 선택 가능 · 끌어다 놓아도 됨</div></div>
+    <ul class="clips" id="clipList"></ul>
+    <div id="trimBox" style="display:none;margin-top:10px">
+      <div class="sub">클립 사용 구간 <span class="hint" id="trimName"></span></div>
+      <video id="trimVid" controls muted playsinline style="width:100%;max-height:160px;background:#000;border-radius:6px;display:block"></video>
+      <div class="row"><label>사용 시작(초)</label><input type="number" id="trimIn" step="0.1" min="0"><button id="btnTrimIn">현재 프레임</button></div>
+      <div class="row"><label>사용 끝(초)</label><input type="number" id="trimOut" step="0.1" min="0"><button id="btnTrimOut">현재 프레임</button></div>
+      <div class="btns"><button class="pri" id="btnTrimAdd"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span>현재 위치에 추가</span><kbd>A</kbd></button><button id="btnTrimPrepend"><svg class="i" aria-hidden="true"><use href="#i-first"/></svg><span>맨 앞에</span><kbd>Q</kbd></button><button id="btnTrimAppend"><svg class="i" aria-hidden="true"><use href="#i-last"/></svg><span>끝에 이어 붙이기</span><kbd>E</kbd></button></div>
+      <div class="hint">여기서 정한 구간이 타임라인에 새로 넣을 때의 기본 범위입니다. 넣은 뒤에도 타임라인에서 자유롭게 늘리고 줄일 수 있습니다.</div>
+    </div>
+  </div>
+
+  <div class="tab" id="tBeat">
+    <div class="sub">비트 소리</div>
+    <div class="row"><label>소리 켜기</label><button class="sw" id="sndSw" role="switch"><i></i></button><label style="flex:0 0 auto;margin-left:10px;color:var(--dim)"><input type="checkbox" id="sndTap"> 탭할 때도 소리</label></div>
+    <div class="row"><label>소리 종류</label><select id="sndSel"></select><button id="sndPlay" class="ic" title="미리 듣기"><svg class="i" aria-hidden="true"><use href="#i-play"/></svg></button><button id="sndDel" class="ic" title="추가한 소리 삭제"><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg></button></div>
+    <div class="row"><label>소리 볼륨</label><input type="range" id="sndVol" min="0" max="150" step="1"><span class="v" id="vSndVol"></span></div>
+    <div class="btns"><button id="sndAdd"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span>내 소리 파일 추가</span></button><button id="grabToggle"><svg class="i" aria-hidden="true"><use href="#i-wave"/></svg><span>음악에서 소리 따기</span></button></div>
+    <div id="grabBox" class="card" style="display:none">
+      <div class="hint">음악에서 원하는 소리(킥, 스네어 등)가 나는 지점을 골라 잘라냅니다. 아래 편집기에 초록색으로 표시됩니다.</div>
+      <div class="row"><label>시작(초)</label><input type="number" id="grabStart" step="0.01" min="0" value="0"><button id="grabNow" title="재생 위치">현재</button><button id="grabBeat" title="재생 위치에서 가장 가까운 비트">비트</button></div>
+      <div class="row"><label>미세 조정(ms)</label><div class="seg"><button data-gn="-0.05">-50</button><button data-gn="-0.01">-10</button><button data-gn="0.01">+10</button><button data-gn="0.05">+50</button></div></div>
+      <div class="row"><label>길이(ms)</label><input type="range" id="grabLen" min="30" max="1500" step="10" value="250"><span class="v" id="vGrabLen">250</span></div>
+      <div class="btns" style="margin-bottom:0"><button id="grabPlay"><svg class="i" aria-hidden="true"><use href="#i-play"/></svg><span>들어보기</span></button><button class="pri" id="grabSave">비트 소리로 저장</button></div>
+    </div>
+    <div class="sub" style="margin-top:12px">비트 만들기</div>
+    <div class="btns"><button class="sec" id="btnDetect">BPM 자동 감지</button><button id="btnTap"><span>탭 템포</span><kbd>T</kbd></button></div>
+    <div class="row"><label>BPM</label><input type="number" id="bpm" step="0.01" min="20" max="400" value="120"></div>
+    <div class="row"><label>첫 비트 위치(초)</label><input type="number" id="offset" step="0.005" value="0"><button id="btnOffNow" title="재생 위치를 첫 비트로 정하고 다시 생성">현재 위치</button></div>
+    <div class="row"><label>음악 시작(초)</label><input type="number" id="mStart" step="0.01" value="0"><span class="hint">이전엔 비트 없음</span></div>
+    <div class="row"><label>비트 기준</label><select id="genSrc"><option value="song">곡마다 자동 BPM</option><option value="global">위 BPM·첫 비트로 전체</option></select></div>
+    <div class="row"><label>밀도</label><select id="genMult"><option value="0.25">1/4 (느림)</option><option value="0.5">1/2</option><option value="1" selected>1 (박자마다)</option><option value="2">2배</option><option value="4">4배 (빠름)</option></select></div>
+    <div class="btns"><button class="pri" id="btnGen">전체 비트 자동 생성</button><button id="btnClear">비트 전부 삭제</button></div>
+    <div class="row"><label>전체 비트 이동(ms)</label><div class="seg"><button data-nudge="-0.05">-50</button><button data-nudge="-0.01">-10</button><button data-nudge="0.01">+10</button><button data-nudge="0.05">+50</button></div></div>
+    <div class="row"><label>클릭 추가 스냅</label><input type="checkbox" id="snap" checked><span class="hint">편집기 클릭 시 1/4박에 맞춤</span></div>
+    <div class="row"><label>입력 지연 보정(ms)</label><input type="number" id="latency" step="5" value="0"></div>
+    <div class="hint">탭을 늦게 누르는 편이면 이 값을 올리세요 (보통 30~80).</div>
+    <div class="info" id="beatInfo">비트 0개</div>
+  </div>
+
+  <div class="tab" id="tCut">
+    <div class="sub">타임라인</div>
+    <div class="hint">클립 목록에서 타임라인으로 끌어다 놓거나, 클립을 고르고 A 키(또는 아래 버튼)를 누르면 현재 위치에 들어갑니다. 조각은 끌어서 옮기고, 양끝을 끌어서 길이를 조절하고, 위아래로 끌어 다른 화면으로 옮길 수 있습니다.</div>
+    <div class="row" id="trackRow"><label>편집할 화면</label><div class="btns" id="trackBtns" style="margin:0"></div></div>
+    <div class="btns"><button class="pri" id="btnAddItem"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span>선택한 클립을 현재 위치에 추가</span><kbd>A</kbd></button><button id="btnPrependItem"><svg class="i" aria-hidden="true"><use href="#i-first"/></svg><span>맨 앞에 추가</span><kbd>Q</kbd></button><button id="btnAppendItem"><svg class="i" aria-hidden="true"><use href="#i-last"/></svg><span>끝에 이어 붙이기</span><kbd>E</kbd></button><button id="btnCopyTrack">화면 1 배치 복사해오기</button></div>
+    <div class="info" id="segInfo"></div>
+    <div class="card">
+      <div class="sub">랜덤 자동 채우기</div>
+      <div class="row"><label>범위</label><select id="fillScope"><option value="all">영상 전체 (기존 조각 교체)</option><option value="empty">빈 곳만 채우기</option><option value="range">구간만 (비트 만들기 바의 구간)</option></select></div>
+      <div class="row"><label>대상 화면</label><select id="fillTarget"><option value="cur">선택한 화면</option><option value="all">모든 화면</option></select></div>
+      <div class="row"><label>클립 전환</label><input type="number" id="fillEvery" min="1" step="1" value="4"><span class="hint">비트마다</span></div>
+      <div class="row"><label>최소 길이(초)</label><input type="number" id="fillMin" min="0.1" step="0.1" value="0.5"></div>
+      <div class="row"><label>클립 내 위치</label><select id="fillPos"><option value="rand">랜덤 장면</option><option value="start">클립 사용 구간 처음부터</option></select></div>
+      <div class="btns" style="margin-bottom:0"><button class="pri" id="btnFill"><svg class="i" aria-hidden="true"><use href="#i-shuffle"/></svg><span>채우기</span><kbd>F</kbd></button><span class="hint">다시 누르면 새로 섞임</span></div>
+    </div>
+    <div id="audEdit" style="display:none">
+      <div class="sub" style="margin-top:14px">선택한 음악 조각</div>
+      <div class="info" id="audInfo"></div>
+      <div class="row"><label>원본에서 시작(초)</label><input type="number" id="audOff" step="0.1" min="0"></div>
+      <div class="row"><label>타임라인 시작(초)</label><input type="number" id="audStart" step="0.01" min="0"></div>
+      <div class="row"><label>길이(초)</label><input type="number" id="audLen" step="0.1" min="0.1"></div>
+      <div class="row"><label>볼륨</label><input type="range" id="audVol" min="0" max="150" step="1"><span class="v" id="vAudVol"></span></div>
+      <div class="btns"><button id="audBpm">이 곡 BPM을 비트 기준으로</button><button id="audSplit"><svg class="i" aria-hidden="true"><use href="#i-cut"/></svg><span>자르기</span><kbd>C</kbd></button><button id="audDup"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg><span>복제</span><kbd>D</kbd></button><button id="audDel"><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg><span>삭제</span><kbd>Del</kbd></button></div>
+    </div>
+    <div id="segEditWrap">
+    <div class="sub" style="margin-top:14px">선택한 조각</div>
+    <div id="segEdit">
+      <div class="info" id="segSelInfo">선택 없음</div>
+      <div class="row"><label>클립</label><select id="segClip"></select></div>
+      <div class="row"><label>원본에서 시작(초)</label><input type="number" id="segOff" step="0.1" min="0"><button id="btnSegOffPrev" title="소스 탭 미리보기 플레이어의 현재 프레임">미리보기 위치</button></div>
+      <div class="row"><label>타임라인 시작(초)</label><input type="number" id="segStart" step="0.01" min="0"><button id="btnSegSnap">비트에 맞춤</button></div>
+      <div class="row"><label>길이(초)</label><input type="number" id="segLen" step="0.1" min="0.1"><button id="btnSegFill" title="다음 조각 또는 곡 끝까지">빈 곳까지</button></div>
+      <div class="row"><label>클립 소리</label><input type="range" id="segVol" min="0" max="200" step="1"><span class="v" id="vVol"></span></div>
+      <div class="btns" style="margin-top:0"><button id="btnVolMute"><svg class="i" aria-hidden="true"><use href="#i-volOff"/></svg><span>끄기</span></button><button id="btnVolOn"><svg class="i" aria-hidden="true"><use href="#i-vol"/></svg><span>100%</span></button><button id="btnVolAll">이 화면 모든 조각에 적용</button></div>
+      <div class="row"><label>재생 속도</label><select id="segRate"><option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="0.75">0.75x</option><option value="1">1x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2x</option></select></div>
+      <div class="sub" style="margin-top:10px">화면 안 위치 <span class="hint">— 미리보기에서 끌기/휠로도 조절</span></div>
+      <div class="row"><label>좌우</label><input type="range" id="segX" min="-100" max="100" step="1"><span class="v" id="vX"></span></div>
+      <div class="row"><label>상하</label><input type="range" id="segY" min="-100" max="100" step="1"><span class="v" id="vY"></span></div>
+      <div class="row"><label>확대</label><input type="range" id="segZoom" min="30" max="500" step="1"><span class="v" id="vZoom"></span></div>
+      <div class="row"><label>좌우 반전</label><input type="checkbox" id="segFlip"><button id="btnSegReset" style="margin-left:auto">위치 초기화</button></div>
+      <div class="btns"><button id="btnSplit"><svg class="i" aria-hidden="true"><use href="#i-cut"/></svg><span>자르기</span><kbd>C</kbd></button><button id="btnDup"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg><span>복제</span><kbd>D</kbd></button><button id="btnDel"><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg><span>삭제</span><kbd>Del</kbd></button></div>
+    </div>
+    </div>
+  </div>
+
+  <div class="tab" id="tLay">
+    <div class="sub">화면 분할</div>
+    <div class="lays" id="lays"></div>
+    <div class="row"><label>분할 간격(px)</label><input type="number" data-k="gap" min="0" max="80" step="1"><input type="color" data-k="gapColor" title="간격·테두리 색"></div>
+    <div class="row"><label>화면 맞춤</label><select data-k="fit"><option value="cover">꽉 채우기 (잘림)</option><option value="contain">전체 보이기 (여백)</option></select></div>
+    <div class="hint">화면마다 타임라인 트랙이 따로 있습니다. 화면을 늘리면 새 화면에는 화면 1 배치가 복사됩니다. 미리보기에서 화면을 클릭하면 그 화면이 선택됩니다.</div>
+  </div>
+
+  <div class="tab" id="tStyle">
+    <div class="row"><label>표시</label><select data-k="showOverlay"><option value="true">켜기</option><option value="false">끄기</option></select></div>
+    <div class="row"><label>모드</label><select data-k="mode"><option value="single">한쪽에서 목표로</option><option value="dual">양쪽에서 가운데로</option></select></div>
+    <div class="row"><label>위치</label><select data-k="pos"><option value="bottom">아래</option><option value="top">위</option></select></div>
+    <div class="row"><label>마커 모양</label><select data-k="shape"><option value="bar">막대</option><option value="circle">원</option><option value="diamond">다이아몬드</option></select></div>
+    <div class="row"><label>바 높이</label><input type="range" data-k="barSize" min="0.04" max="0.2" step="0.005"><span class="v" data-v="barSize"></span></div>
+    <div class="row"><label>바 투명도</label><input type="range" data-k="barAlpha" min="0" max="1" step="0.05"><span class="v" data-v="barAlpha"></span></div>
+    <div class="row"><label>미리보기 시간(초)</label><input type="range" data-k="window" min="0.8" max="6" step="0.1"><span class="v" data-v="window"></span></div>
+    <div class="row"><label>바 색</label><input type="color" data-k="barColor"><label style="flex:0 0 auto">마커</label><input type="color" data-k="beatColor"></div>
+    <div class="row"><label>목표 색</label><input type="color" data-k="targetColor"><label style="flex:0 0 auto">타격</label><input type="color" data-k="flashColor"></div>
+    <div class="row"><label>남은 비트 수</label><select data-k="showCounter"><option value="false">숨기기</option><option value="true">표시</option></select></div>
+  </div>
+
+  <div class="tab" id="tOut">
+    <div class="row"><label>해상도</label><select data-k="res">
+      <optgroup label="가로"><option value="1280x720">1280×720 (HD)</option><option value="1920x1080">1920×1080 (FHD)</option><option value="2560x1440">2560×1440 (QHD)</option><option value="3840x2160">3840×2160 (4K)</option></optgroup>
+      <optgroup label="세로"><option value="720x1280">720×1280</option><option value="1080x1920">1080×1920</option><option value="1440x2560">1440×2560</option><option value="2160x3840">2160×3840 (4K)</option></optgroup>
+      <optgroup label="정사각"><option value="1080x1080">1080×1080</option><option value="2160x2160">2160×2160</option></optgroup>
+      <option value="custom">직접 입력</option></select></div>
+    <div class="row" id="customRes"><label>직접 입력</label><input type="number" data-k="cw" step="2" min="64" max="7680"><span>×</span><input type="number" data-k="ch" step="2" min="64" max="7680"></div>
+    <div class="btns"><button id="btnResClip">선택한 클립의 원본 해상도로</button></div>
+    <div class="row"><label>FPS</label><select data-k="fps"><option value="30">30</option><option value="60">60</option></select></div>
+    <div class="row"><label>비트레이트(Mbps)</label><input type="number" data-k="bitrate" min="0" max="120" step="1"><span class="hint">0=자동</span></div>
+    <div class="info" id="resInfo"></div>
+    <div class="hint" id="expInfo">내보내기는 실시간으로 녹화되므로 곡 길이만큼 걸리며, 그동안 이 탭을 띄워 두어야 합니다. Chrome 최신 버전은 MP4, 그 외 브라우저는 WebM으로 저장됩니다.</div>
+    <div class="btns"><button class="pri" id="btnExport2"><svg class="i" aria-hidden="true"><use href="#i-export"/></svg><span>영상 내보내기</span></button></div>
+    <div class="row" style="margin-top:14px"><label>문제 알리기</label><button id="btnDiag"><svg class="i" aria-hidden="true"><use href="#i-bug"/></svg><span>진단 정보 저장</span></button></div>
+    <div class="hint">버전·환경·오류 기록을 파일 하나로 저장합니다. 음악·영상 내용과 폴더 경로는 들어가지 않습니다(오류 기록에 파일 이름은 남을 수 있음). <span id="appVer"></span></div>
+  </div>
+</aside>
+
+<section id="center">
+  <div id="restoreBar"><span id="restoreTxt"></span><button class="pri" id="restoreYes">복구</button><button id="restoreNo">삭제</button></div>
+  <div id="stage"><canvas id="view" width="1280" height="720"></canvas>
+    <div id="empty"><svg class="i" aria-hidden="true"><use href="#i-upload"/></svg><div>음악과 영상 클립을 이 창에 끌어다 놓으세요</div><div class="hint">음악을 넣으면 BPM 감지와 비트 생성이 자동으로 됩니다</div></div>
+  </div>
+  <div id="split" title="끌어서 미리보기 크기 조절 (더블클릭: 자동)"></div>
+  <div id="lower">
+  <div id="transport">
+    <button id="btnPlay"><svg class="i" aria-hidden="true"><use href="#i-play"/></svg><span>재생</span></button>
+    <button id="btnStart" class="ic" title="처음으로 (Home)"><svg class="i" aria-hidden="true"><use href="#i-back"/></svg></button>
+    <input type="range" id="seek" min="0" max="1000" value="0">
+    <span id="time">0:00.00 / 0:00</span>
+    <select id="pvSize" title="미리보기 크기">
+      <option value="auto">미리보기: 자동</option><option value="xs">미리보기: 아주 작게</option><option value="sm">미리보기: 작게</option><option value="md">미리보기: 보통</option><option value="lg">미리보기: 크게</option><option value="custom" hidden>미리보기: 직접 조절</option>
+    </select>
+    <button id="btnKeys" class="ic" title="단축키 안내 보이기/숨기기"><svg class="i" aria-hidden="true"><use href="#i-keys"/></svg></button>
+  </div>
+  <div id="maker">
+    <div class="mr">
+      <span class="ttl">비트 만들기</span>
+      <button id="btnRec"><svg class="i" aria-hidden="true"><use href="#i-rec"/></svg><span>녹음 시작</span><kbd>R</kbd></button>
+      <button id="pad"><span>TAP</span><kbd>B</kbd></button>
+      <span class="hint">비트 소리</span><button class="sw" id="sndSw2" role="switch" title="비트 소리 켜기/끄기"><i></i></button>
+      <label><input type="checkbox" id="recOver" checked> 녹음한 구간의 기존 비트 지우기</label>
+      <label><input type="checkbox" id="recQuant"> 1/4박에 맞춤</label>
+      <span class="sep"></span>
+      <span class="hint">구간</span>
+      <input type="number" id="rA" step="0.1" value="0"><button id="btnSetA" title="현재 위치를 시작점으로 ([)">[ 현재</button>
+      <span>~</span>
+      <input type="number" id="rB" step="0.1" value="10"><button id="btnSetB" title="현재 위치를 끝점으로 (])">현재 ]</button>
+    </div>
+    <div class="mr">
+      <span class="ttl">패턴</span>
+      <div class="steps" id="steps"></div>
+      <select id="patPreset">
+        <option value="">프리셋…</option><option value="q">4분 (박자마다)</option><option value="h">2분 (느리게)</option><option value="e">8분</option><option value="s">16분 (최대)</option>
+        <option value="sync">싱코페이션 3-3-2</option><option value="gallop">갤럽</option><option value="dbl">더블 탭</option><option value="clr">비우기</option>
+      </select>
+      <button class="pri" id="btnPatRange">구간에 적용</button><button id="btnPatAll">전체에 적용</button>
+      <span class="sep"></span>
+      <span class="hint">구간 속도</span>
+      <select id="rMult"><option value="0">0 (휴식)</option><option value="0.25">1/4</option><option value="0.5">1/2</option><option value="1">1</option><option value="2" selected>2배</option><option value="4">4배</option></select>
+      <button id="btnRange">구간에 적용</button>
+    </div>
+  </div>
+  <div id="tlbar">
+    <span class="ttl">타임라인</span>
+    <button id="tlUndo" class="ic" title="되돌리기 (Ctrl+Z)" disabled><svg class="i" aria-hidden="true"><use href="#i-undo"/></svg></button><button id="tlRedo" class="ic" title="다시 실행 (Ctrl+Shift+Z)" disabled><svg class="i" aria-hidden="true"><use href="#i-redo"/></svg></button>
+    <button class="pri" id="tlAdd"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span>현재 위치에 추가</span><kbd>A</kbd></button>
+    <button id="tlPrepend"><svg class="i" aria-hidden="true"><use href="#i-first"/></svg><span>맨 앞에</span><kbd>Q</kbd></button>
+    <button id="tlAppend"><svg class="i" aria-hidden="true"><use href="#i-last"/></svg><span>끝에 붙이기</span><kbd>E</kbd></button>
+    <button id="tlSplit"><svg class="i" aria-hidden="true"><use href="#i-cut"/></svg><span>자르기</span><kbd>C</kbd></button>
+    <button id="tlFill" title="여러 클립을 랜덤으로 자동 채우기 (설정은 편집 탭)"><svg class="i" aria-hidden="true"><use href="#i-shuffle"/></svg><span>랜덤 채우기</span><kbd>F</kbd></button>
+    <button id="tlDup" class="ic" title="복제 (D)"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg></button>
+    <button id="tlDel" class="ic" title="삭제 (Del)"><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg></button>
+    <span class="sep"></span>
+    <label><input type="checkbox" id="tlSnap" checked> 비트·조각에 붙이기</label>
+    <span class="sep"></span>
+    <button id="tlSound" title="모든 영상 조각의 소리 켜기/끄기"><svg class="i" aria-hidden="true"><use href="#i-vol"/></svg><span>클립 소리</span></button>
+    <span class="sep"></span>
+    <button id="zOut" class="ic" title="축소 (Ctrl+휠)"><svg class="i" aria-hidden="true"><use href="#i-minus"/></svg></button><button id="zIn" class="ic" title="확대 (Ctrl+휠)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></button><button id="zFit" class="ic" title="전체 보기"><svg class="i" aria-hidden="true"><use href="#i-fit"/></svg></button>
+    <span class="hint" id="segInfo2"></span>
+  </div>
+  <canvas id="strip"></canvas>
+  <div class="keys hide" id="keys">
+    <b>파형 클릭</b> 비트 추가/삭제 · <b>조각 끌기</b> 이동 · <b>조각 양끝 끌기</b> 길이 · <b>빈 트랙 더블클릭</b> 클립 넣기 · <b>미리보기 끌기/휠</b> 화면 안 위치·확대 ·
+    <b>Space</b> 재생 · <b>A</b> 현재 위치에 추가 · <b>Q</b> 맨 앞에 추가 · <b>E</b> 끝에 이어 붙이기 · <b>C</b> 자르기 · <b>F</b> 랜덤 채우기 · <b>D</b> 복제 · <b>Del</b> 삭제 · <b>R</b> 비트 녹음 · <b>B</b> 비트 찍기 · <b>Ctrl+휠</b> 확대/축소 · <b>Ctrl+Z</b> 되돌리기 · <b>Ctrl+Shift+Z</b> 다시 실행
+  </div>
+  </div>
+</section>
+</main>
+
+<div id="about"><div class="box"><div id="aboutBody"></div><div class="btns"><button id="aboutClose">닫기</button></div></div></div>
+<div id="modal"><div class="box">
+  <div class="mt">영상 내보내는 중…</div>
+  <div class="bar"><i id="expBar"></i></div>
+  <div class="hint" id="expTxt">0%</div>
+  <div class="hint" id="expHint">이 탭을 닫거나 다른 탭으로 옮기지 마세요.</div>
+  <div class="btns" style="justify-content:flex-end"><button id="btnCancel">취소</button></div>
+</div></div>
+<div id="expDone" style="display:none"><span>내보내기 완료 · <b id="expDoneTxt"></b></span><button id="expOpen"><svg class="i" aria-hidden="true"><use href="#i-open"/></svg><span>폴더 열기</span></button><button id="expClose" class="ic" title="닫기"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+<div id="toast"></div>
+<div id="vids"></div>
+<input type="file" id="fMusic" accept="audio/*,video/*,.mkv,.mov" multiple hidden>
+<input type="file" id="fClips" accept="video/*" multiple hidden>
+<input type="file" id="fSnd" accept="audio/*" hidden>
+<input type="file" id="fProj" accept=".json,application/json" hidden>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

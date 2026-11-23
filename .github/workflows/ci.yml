@@ -1,0 +1,42 @@
+# 검사·테스트: main에 올리거나 PR을 열면 실행 (리눅스 + Windows)
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: 타입 검사
+        run: npx tsc --noEmit
+      - name: 빌드
+        run: npx vite build
+      - name: 웹 테스트 (설치된 Chrome 사용)
+        run: npx playwright test
+      - name: 데스크톱 앱 테스트 (리눅스는 가상 화면)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npx playwright test -c playwright.electron.config.js
+      - name: 데스크톱 앱 테스트
+        if: runner.os != 'Linux'
+        run: npx playwright test -c playwright.electron.config.js
+      - name: 실패하면 테스트 결과 올리기
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}
+          path: test-results/
+          retention-days: 7

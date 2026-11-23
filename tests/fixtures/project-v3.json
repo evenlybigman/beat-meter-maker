@@ -1,0 +1,8 @@
+{"app":"beat-meter-maker","v":3,"sounds":[],"bpm":128,"offset":3.2,"musicStart":3.2,"beats":[3.2,3.6688,4.1375],
+ "set":{"layout":"2h","mode":"dual","cutEvery":4,"stagger":true},
+ "songs":["bpm128_sil3_2.ogg"],"audio":[{"start":0,"end":40,"song":"bpm128_sil3_2.ogg","off":0,"vol":0.8}],
+ "clips":["v1.mp4","v2.mp4"],"trims":[{"name":"v1.mp4","inPt":1,"outPt":6}],
+ "tracks":[[{"start":0,"end":5,"clip":"v1.mp4","off":1,"rate":1,"x":0.2,"y":0,"zoom":1.5,"flip":true,"vol":1},
+            {"start":5,"end":12,"clip":"v2.mp4","off":0,"rate":2,"x":0,"y":0,"zoom":1,"flip":false,"vol":0}],
+           [{"start":0,"end":8,"clip":"v2.mp4","off":0,"rate":1,"x":0,"y":0,"zoom":1,"flip":false,"vol":0}]],
+ "musicVol":0.9}

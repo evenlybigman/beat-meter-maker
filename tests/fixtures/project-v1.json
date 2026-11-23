@@ -1,0 +1,2 @@
+{"app":"beat-meter-maker","v":1,"bpm":120,"offset":0,"beats":[1,2],"set":{"mode":"single"},"seed":42,
+ "segments":[{"start":0,"end":4,"clip":"v1.mp4","off":0}],"music":"bpm128_sil3_2.ogg","clips":["v1.mp4"]}
