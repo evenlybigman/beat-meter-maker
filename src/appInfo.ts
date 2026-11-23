@@ -11,8 +11,8 @@ export const APP_INFO = {
   author: 'Juke',
   year: 2026,
   license: 'GPL-3.0-or-later',
-  /** 소스 코드 저장소 (예: https://github.com/<사용자>/beat-meter-maker) — 정해지면 채우기 */
-  sourceUrl: '',
+  /** 소스 코드 저장소 */
+  sourceUrl: 'https://github.com/evenlybigman/beat-meter-maker',
   /** 후원 링크 — 정해지면 채우기 */
   donateUrl: '',
   donateLabel: '후원하기',

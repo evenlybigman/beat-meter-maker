@@ -37,6 +37,7 @@ import { updateHistoryUI } from './history';
 import { desk } from './desktop';
 import { APP_INFO, closeAbout, openAbout } from './appInfo';
 import { $ } from './util';
+import { initUpdate } from './update';
 
 setPreset('q');
 $('#btnDiag').onclick = saveDiag;
@@ -50,6 +51,7 @@ applySettingsToUI(); syncBeatInputs(); updateBeatInfo(); ensureTracks(); renderS
 try { const pv = JSON.parse(localStorage.getItem('bmm.pv') || 'null'); if (pv && pv.mode !== 'auto') setPreviewSize(pv.mode, pv.mode === 'custom' ? pv.px : 0); } catch (e) {}
 fitCanvas();
 initAutosave();
+initUpdate();
 updateHistoryUI();   // 모듈을 모두 불러온 뒤 (history 모듈 초기화 전에 부르면 안 됨)
 requestAnimationFrame(frame);
 

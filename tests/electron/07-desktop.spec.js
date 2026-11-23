@@ -151,3 +151,31 @@ test('25. 정보 창 링크는 앱 안에서 열지 않고 기본 브라우저�
   expect(a.app.windows().length).toBe(1);                 // 앱 안에 새 창이 생기지 않음
   expect(a.page.url()).toBe('app://local/index.html');    // 앱 화면도 그대로
 });
+
+test('28. 자동 업데이트: 새 버전을 받으면 바가 뜨고, 나중에는 닫기만, 지금 재시작은 설치 요청', async ({ desk }) => {
+  const a = await desk.launch({ BMM_FAKE_UPDATE: '9.9.9' });
+  const bar = a.page.locator('#updBar');
+  await expect(bar).toBeVisible({ timeout: 10_000 });
+  await expect(a.page.locator('#updVer')).toHaveText('v9.9.9');
+  await a.page.click('#updLater');
+  await expect(bar).toBeHidden();
+  expect(await a.app.evaluate(() => globalThis.__updInstall || 0)).toBe(0);   // 나중에 → 설치 요청 없음
+
+  // 다시 띄워서 지금 재시작 → 설치 요청 1번 (테스트에선 실제로 재시작하지 않음)
+  await a.E(`document.querySelector('#updBar').style.display = 'flex'`);
+  await a.page.click('#updNow');
+  await expect.poll(() => a.app.evaluate(() => globalThis.__updInstall || 0)).toBe(1);
+
+  // 내보내는 중에는 재시작하지 않음
+  await a.E('S.exporting = true');
+  await a.page.click('#updNow');
+  await expect(a.page.locator('#toast')).toContainText('내보내기가 끝난 뒤');
+  expect(await a.app.evaluate(() => globalThis.__updInstall)).toBe(1);
+  await a.E('S.exporting = false');
+});
+
+test('28b. 업데이트 흉내가 없으면 바는 뜨지 않음 (테스트·개발 실행에선 확인 안 함)', async ({ desk }) => {
+  const a = await desk.launch();
+  await a.page.waitForTimeout(1000);
+  await expect(a.page.locator('#updBar')).toBeHidden();
+});

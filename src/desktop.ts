@@ -13,6 +13,7 @@ export interface DeskApi {
   mainLog(): Promise<string[]>;
   versions: { electron: string; chrome: string; node: string; os: string };
   metrics(): Promise<{ type: string; name: string; cpu: number; workingSetKB: number; privateKB: number }[]>;
+  update?: { onReady(cb: (i: { version: string }) => void): void; install(): Promise<boolean> };
   dec: {
     open(o: { id: string; path: string; ss: number; rate: number; fps: number; w: number; h: number; loop: boolean }): Promise<boolean>;
     read(id: string): Promise<Uint8Array | null>;

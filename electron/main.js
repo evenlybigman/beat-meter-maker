@@ -84,7 +84,7 @@ app.whenReady().then(() => {
     if (!p.startsWith(DIST)) return new Response('forbidden', { status: 403 });
     return fileResponse(p, req);
   });
-  createWindow();
+  setupUpdates(createWindow());
   app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
 });
 app.on('window-all-closed', () => app.quit());
@@ -93,6 +93,33 @@ app.on('window-all-closed', () => app.quit());
 ipcMain.handle('diag:mainLog', () => { try { return fs.readFileSync(logFile(), 'utf8').trim().split('\n').slice(-50); } catch (e) { return []; } });
 ipcMain.handle('diag:metrics', () => app.getAppMetrics().map(m => ({ type: m.type, name: m.name || '', cpu: Math.round(m.cpu.percentCPUUsage), workingSetKB: m.memory.workingSetSize, privateKB: m.memory.privateBytes || 0 })));
 ipcMain.handle('shell:show', (_e, p) => shell.showItemInFolder(p));
+
+/* ---------- 자동 업데이트 (GitHub 릴리스) ----------
+ * 설치본에서만: 켤 때 새 버전 확인 → 백그라운드로 받음 → 화면에 "재시작해서 설치" 바
+ * 나중에를 누르면 앱을 끌 때 설치됨. macOS는 코드 서명이 없으면 동작하지 않아 끔
+ * 테스트: BMM_FAKE_UPDATE=<버전> 이면 실제로 확인하지 않고 "받음" 상태만 흉내 */
+let updater = null, updReady = null;
+const FAKE_UPD = process.env.BMM_FAKE_UPDATE || '';
+function setupUpdates(win) {
+  const notify = info => { updReady = { version: info.version }; if (!win.isDestroyed()) win.webContents.send('upd:ready', updReady); };
+  if (FAKE_UPD) { win.webContents.once('did-finish-load', () => setTimeout(() => notify({ version: FAKE_UPD }), 300)); return; }
+  if (TEST || !app.isPackaged || process.platform === 'darwin' || process.env.BMM_NO_UPDATE === '1') return;
+  try { updater = require('electron-updater').autoUpdater; } catch (e) { mlog('[update] 불러오기 실패 ' + e.message); return; }
+  updater.logger = { info: m => mlog('[update] ' + m), warn: m => mlog('[update] ' + m), error: m => mlog('[update] 오류 ' + m), debug() {} };
+  updater.autoDownload = true;
+  updater.autoInstallOnAppQuit = true;
+  updater.on('update-downloaded', notify);
+  updater.on('error', e => mlog('[update] 오류 ' + (e && e.message || e)));   // 인터넷이 없어도 조용히 넘어감
+  updater.checkForUpdates().catch(e => mlog('[update] 확인 실패 ' + (e && e.message || e)));
+}
+ipcMain.handle('upd:state', () => updReady);
+ipcMain.handle('upd:install', () => {
+  if (FAKE_UPD) { globalThis.__updInstall = (globalThis.__updInstall || 0) + 1; return true; }
+  if (!updater || !updReady) return false;
+  mlog(`[update] ${updReady.version} 설치하며 재시작`);
+  setImmediate(() => updater.quitAndInstall(false, true));
+  return true;
+});
 
 /* ---------- 내보내기 저장 위치 (ffmpeg 실행은 preload의 ff.js) ---------- */
 ipcMain.handle('exp:dialog', async (e, name) => {

@@ -25,6 +25,11 @@ contextBridge.exposeInMainWorld('bmm', {
   metrics: () => ipcRenderer.invoke('diag:metrics'),
   mainLog: () => ipcRenderer.invoke('diag:mainLog'),
   versions: { electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node, os: `${process.platform} ${os.release()} ${process.arch}` },
+  /** 자동 업데이트: 새 버전을 다 받으면 cb({version}) (이미 받아 둔 상태면 바로), install()은 재시작하며 설치 */
+  update: {
+    onReady: cb => { ipcRenderer.on('upd:ready', (_e, i) => cb(i)); ipcRenderer.invoke('upd:state').then(i => { if (i) cb(i); }); },
+    install: () => ipcRenderer.invoke('upd:install'),
+  },
   dec: { open: async o => ff.decOpen(o), read: id => ff.decRead(id), close: async id => ff.decClose(id) },
   exp: {
     /** 저장 위치를 묻고(취소하면 canceled) 인코더 시작 */

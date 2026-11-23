@@ -2,6 +2,23 @@
 
 비트 동기화 리듬 영상 편집기. 음악의 BPM을 감지해 비트를 만들고, 영상 조각을 타임라인에 배치해 비트 바 오버레이가 들어간 영상으로 내보냅니다.
 
+## 내려받기
+
+**[Releases](https://github.com/evenlybigman/beat-meter-maker/releases/latest)** 에서 받습니다.
+
+- **Windows:** `Beat-Meter-Maker-Setup-x.y.z.exe` 를 실행해 설치합니다. 코드 서명이 없어서 처음에 "Windows의 PC 보호" 창이 뜨면 **추가 정보 → 실행** 을 누르세요.
+- **Linux:** `.AppImage` 에 실행 권한을 주고 실행합니다.
+- **macOS:** `.dmg` (서명이 없어 처음 열 때 우클릭 → 열기)
+
+설치한 앱(Windows, Linux AppImage)은 켤 때 새 버전을 확인해 자동으로 받고, 다 받으면 화면 위에 **지금 재시작해서 설치 / 나중에** 바가 뜹니다. 나중에를 누르면 앱을 끌 때 설치됩니다.
+
+## 새 버전 내기 (개발자)
+
+1. `package.json` 의 `version` 을 올립니다 (예: 0.1.1).
+2. 커밋하고 같은 번호로 태그를 올립니다: `git tag v0.1.1 && git push origin main --tags`
+3. Actions가 설치 파일과 자동 업데이트 정보(`latest.yml`)를 만들어 릴리스 **초안** 에 올립니다.
+4. GitHub Releases에서 초안을 확인하고 **Publish** 를 누르면 사용자 앱이 새 버전을 받습니다.
+
 ## 실행
 
 - **바로 쓰기:** `npm run build` 후 `dist/index.html`을 Chrome으로 엽니다 (파일 하나에 모두 들어 있음).

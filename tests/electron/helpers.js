@@ -14,11 +14,11 @@ const test = base.extend({
   tmp: async ({}, use) => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'bmm-e2e-')); await use(d); fs.rmSync(d, { recursive: true, force: true }); },
   desk: async ({ tmp }, use) => {
     const opened = [], out = path.join(tmp, 'out.mp4'), userData = path.join(tmp, 'user');
-    const launch = async () => {
+    const launch = async (extraEnv = {}) => {   // extraEnv: 테스트용 환경 변수 추가 (예: BMM_FAKE_UPDATE)
       // BMM_EXE: 설치본(electron-builder 결과) 실행 파일로 테스트
       const exe = process.env.BMM_EXE, args = exe ? [] : [ROOT];
       if (process.platform === 'linux' && process.getuid && process.getuid() === 0) args.push('--no-sandbox');
-      const app = await _electron.launch({ args, ...(exe ? { executablePath: exe } : {}), env: { ...process.env, BMM_TEST: '1', BMM_TEST_OUT: out, BMM_USER_DATA: userData } });
+      const app = await _electron.launch({ args, ...(exe ? { executablePath: exe } : {}), env: { ...process.env, BMM_TEST: '1', BMM_TEST_OUT: out, BMM_USER_DATA: userData, ...extraEnv } });
       const page = await app.firstWindow(), errors = [];
       page.on('pageerror', e => errors.push(String(e)));
       if (process.env.BMM_FF_LOG) page.on('console', m => console.log('[page]', m.text()));
