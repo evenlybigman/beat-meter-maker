@@ -7,7 +7,7 @@ const { test, expect, APP, FX, SONG, loadMusic, loadClips } = require('./helpers
 
 // 저장 전후 비교용 상태 요약
 const SNAP = `({
-  tracks: S.tracks.map(tr => tr.map(g => [g.srcName, g.start, g.end, g.off, g.rate, g.x, g.y, g.zoom, g.flip, g.vol])),
+  tracks: S.tracks.map(tr => tr.map(g => [g.srcName, g.start, g.end, g.off, g.rate, g.x, g.y, g.zoom, g.flip, g.rot, g.tilt, g.vol])),
   audio: S.audio.map(g => [g.srcName, g.start, g.end, g.off, g.vol]),
   beats: S.beats.slice(),
   set: { layout: S.set.layout, mode: S.set.mode, beatVol: S.set.beatVol, durMode: S.set.durMode, beatSound: S.set.beatSound },
@@ -22,7 +22,7 @@ test('9. 프로젝트 저장 → 새로고침 → 불러오기 후 상태가 같
   await page.keyboard.press('f');
   await page.click('.tabs button[data-tab="tLay"]');
   await page.locator('#lays button', { hasText: '좌우 2분할' }).click();
-  await app.E('S.tracks[0][0].x = 0.25; S.tracks[0][0].zoom = 1.5; S.tracks[0][0].flip = true; S.set.mode = "dual"; S.set.beatVol = 0.5');
+  await app.E('S.tracks[0][0].x = 0.25; S.tracks[0][0].zoom = 1.5; S.tracks[0][0].flip = true; S.tracks[0][0].rot = 270; S.tracks[0][0].tilt = -12; S.set.mode = "dual"; S.set.beatVol = 0.5');
   await page.setInputFiles('#fSnd', FX('snap.wav'));
   await page.waitForFunction(() => SND.list.some(x => x.custom));
   const before = await app.E(SNAP);

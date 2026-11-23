@@ -100,7 +100,7 @@ export function validateProject(d: any): string | null {
     if (g.end != null && (!num(g.end) || g.end <= g.start)) return `${where} ${i + 1}번째 조각의 끝 시각이 잘못됨`;
     if (g.end == null && kind !== 'audio') return `${where} ${i + 1}번째 조각의 끝 시각이 없음`;
     if (!str(g.src)) return `${where} ${i + 1}번째 조각의 파일 이름이 없음`;
-    for (const k of ['off', 'rate', 'x', 'y', 'zoom', 'vol']) if (g[k] != null && !num(g[k])) return `${where} ${i + 1}번째 조각의 ${k} 값이 잘못됨`;
+    for (const k of ['off', 'rate', 'x', 'y', 'zoom', 'vol', 'rot', 'tilt']) if (g[k] != null && !num(g[k])) return `${where} ${i + 1}번째 조각의 ${k} 값이 잘못됨`;
     return null;
   };
   for (let k = 0; k < m.tracks.length; k++) for (let i = 0; i < m.tracks[k].length; i++) { const e = item(m.tracks[k][i], i, `화면 ${k + 1}`, 'video'); if (e) return e; }

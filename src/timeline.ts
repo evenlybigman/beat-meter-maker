@@ -5,7 +5,7 @@ import type { Clip, Item, VideoItem } from './types';
 import { limitDur, now, seek, updateDurUI } from './audio';
 import { nearestBeat } from './beats';
 import { commit } from './history';
-import { ITEM_TYPES, makeItem } from './itemTypes';
+import { ITEM_TYPES, makeItem, normRot } from './itemTypes';
 import { renderClipList } from './clips';
 import { strip } from './dom';
 import { LAYOUTS, panelCount, resizeStrip } from './render';
@@ -118,6 +118,8 @@ export function refreshItemEditor() {
   $('#segX').value = Math.round(g.x * 100); $('#segY').value = Math.round(g.y * 100); $('#segZoom').value = Math.round(g.zoom * 100);
   $('#vX').textContent = Math.round(g.x * 100); $('#vY').textContent = Math.round(g.y * 100); $('#vZoom').textContent = Math.round(g.zoom * 100) + '%';
   $('#segFlip').checked = !!g.flip;
+  document.querySelectorAll<HTMLElement>('#segRot button').forEach(b => b.classList.toggle('on', +(b.dataset.rot || 0) === (g.rot || 0)));
+  $('#segTilt').value = String(g.tilt || 0); $('#vTilt').textContent = (g.tilt || 0) + '°';
   $('#segVol').value = Math.round((g.vol || 0) * 100); $('#vVol').textContent = Math.round((g.vol || 0) * 100) + '%';
 }
 // 선택한 조각의 속성 변경. undo=false면 슬라이더처럼 계속 바뀌는 조작 (기록은 누를 때 record로 한 번)
@@ -186,6 +188,12 @@ export function splitAt(t: number) {
   const target = g;
   commit(`${ITEM_TYPES[g.kind].label} 자르기`, () => { S.selItem = splitItem(target, t); });
   toast(`${fmt(t)}에서 잘랐습니다 — 필요 없는 쪽은 선택 후 Del`);
+}
+/** 선택한 영상 조각을 시계 방향으로 90도 (단축키 O) */
+export function rotateSel() {
+  const g = S.selItem; if (!g || g.kind !== 'video') return toast('먼저 타임라인에서 영상 조각을 선택하세요');
+  itemOp(x => { x.rot = normRot((x.rot || 0) + 90); }, true, '회전');
+  toast(`회전 ${g.rot}°`);
 }
 export function dupItem() {
   const g = S.selItem; if (!g) return toast('먼저 타임라인에서 조각을 선택하세요');

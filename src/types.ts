@@ -59,6 +59,8 @@ interface ItemBase {
   vol: number;
   /** 화면 안 위치(-1~1, 화면 크기 비율)·확대·좌우 반전. 음악 조각에서는 쓰지 않음 */
   x: number; y: number; zoom: number; flip: boolean;
+  /** 회전(0·90·180·270도, 시계 방향)과 기울기(-45~45도). 기울이면 생기는 빈 귀퉁이는 검게 둠 */
+  rot: number; tilt: number;
 }
 /** 영상 조각: 원본은 클립 */
 export interface VideoItem extends ItemBase { kind: 'video'; src: Clip | null }
@@ -72,7 +74,7 @@ export interface SoundEntry { id: string; name: string; buf?: AudioBuffer; b64?:
 export interface UndoEntry { label: string; beats: number[]; songs: Song[]; tracks: VideoItem[][]; audio: AudioItem[]; dur: [Settings['durMode'], number]; sel: [number, number] | null /* 선택 위치 [트랙(-1=음악), 순번] */ }
 
 /** 프로젝트 파일에 저장되는 조각 (v4) */
-export interface ItemFile { kind: ItemKind; start: number; end: number | null; src: string; off: number; rate: number; vol: number; x: number; y: number; zoom: number; flip: boolean }
+export interface ItemFile { kind: ItemKind; start: number; end: number | null; src: string; off: number; rate: number; vol: number; x: number; y: number; zoom: number; flip: boolean; rot?: number; tilt?: number }
 
 /** 프로젝트 파일(.beatproj.json) 형식, v4. v1~v3은 project.ts의 migrate()가 이 형식으로 바꿈 */
 export interface ProjectFile {

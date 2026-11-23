@@ -11,7 +11,7 @@ import { togglePlay } from './player';
 import { layoutRects, panelCount, type PanelRect } from './render';
 import type { Item, VideoItem } from './types';
 import { S } from './state';
-import { AUD_H, LANE_H, WAVE_H, activeIdx, listOf, addItemAt, addSelectedClip, allItems, appendSelectedClip, delItem, dupItem, prependSelectedClip, refreshItemEditor, renderTrackBtns, selectItem, selectTrack, sortTrack, splitAt, tlSnap, trackOf, updateSegInfo, viewStart } from './timeline';
+import { AUD_H, LANE_H, WAVE_H, activeIdx, listOf, addItemAt, addSelectedClip, allItems, appendSelectedClip, delItem, dupItem, rotateSel, prependSelectedClip, refreshItemEditor, renderTrackBtns, selectItem, selectTrack, sortTrack, splitAt, tlSnap, trackOf, updateSegInfo, viewStart } from './timeline';
 import { $, lowerBound, toast } from './util';
 
 // 편집기 마우스: 위쪽(파형) = 비트, 아래쪽(트랙) = 영상 조각
@@ -190,6 +190,7 @@ window.addEventListener('keydown', e => {
   else if (k === 'q' && !e.ctrlKey && !e.metaKey) { prependSelectedClip(); }
   else if (k === 'f' && !e.ctrlKey && !e.metaKey) { randomFill(); }
   else if (k === 'd' && !e.ctrlKey && !e.metaKey) { dupItem(); }
+  else if (k === 'o' && !e.ctrlKey && !e.metaKey) { rotateSel(); }
   else if (k === '[') { setA(); }
   else if (k === ']') { setB(); }
   else if (k === 't') tap();

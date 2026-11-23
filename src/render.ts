@@ -4,6 +4,7 @@
 import type { Clip, VideoItem } from './types';
 import { actx, audioOut, projDur } from './audio';
 import { cv, cx, strip, sx } from './dom';
+import { rotSize } from './itemTypes';
 import { audioAt } from './songs';
 import { S } from './state';
 import { AUD_H, LANE_H, WAVE_H, activeIdx, nextItem, viewStart } from './timeline';
@@ -161,11 +162,14 @@ export function drawPanelImg(g: VideoItem | null, img: CanvasImageSource | null,
   const pc = panelCache(k, w, h), pcx = pc.getContext('2d')!;
   if (!g) pc._has = false;                      // 빈 구간은 검은 화면
   else if (img && vw && vh) {
-    const s = (S.set.fit === 'contain' ? Math.min(w / vw, h / vh) : Math.max(w / vw, h / vh)) * (g.zoom || 1);
+    const [bw, bh] = rotSize(g, vw, vh);   // 돌린 뒤 크기로 화면 채우기 계산
+    const s = (S.set.fit === 'contain' ? Math.min(w / bw, h / bh) : Math.max(w / bw, h / bh)) * (g.zoom || 1);
     const dw = vw * s, dh = vh * s;
     pcx.setTransform(1, 0, 0, 1, 0, 0);
     pcx.fillStyle = '#000'; pcx.fillRect(0, 0, w, h);
     pcx.translate(w / 2 + (g.x || 0) * w, h / 2 + (g.y || 0) * h);
+    const ang = (g.rot || 0) + (g.tilt || 0);
+    if (ang) pcx.rotate(ang * Math.PI / 180);   // 시계 방향. 기울여서 생긴 귀퉁이는 위에서 칠한 검은색
     if (g.flip) pcx.scale(-1, 1);
     pcx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
     pcx.setTransform(1, 0, 0, 1, 0, 0);

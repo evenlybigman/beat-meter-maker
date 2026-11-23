@@ -13,6 +13,7 @@ import { loadProject, saveProject } from './project';
 import { applySettingsToUI } from './settings';
 import { loadMusicFiles, runDetect } from './songs';
 import { S } from './state';
+import { clampTilt } from './itemTypes';
 import { addSelectedClip, allItems, appendSelectedClip, copyTrack, delItem, dupItem, itemOp, prependSelectedClip, setTrim, splitAt, trackOf } from './timeline';
 import { zoomBy } from './timelineInput';
 import { $, fmt, status, toast } from './util';
@@ -84,6 +85,9 @@ for (const [id, key, sc] of [['#segX', 'x', 100], ['#segY', 'y', 100], ['#segZoo
   $(id).addEventListener('input', (e: InEv) => itemOp(g => { g[key] = (+e.target.value) / sc; }, false));
 }
 $('#segFlip').onchange = (e: InEv) => itemOp(g => { g.flip = e.target.checked; });
+document.querySelectorAll<HTMLElement>('#segRot button').forEach(b => b.onclick = () => itemOp(g => { g.rot = +(b.dataset.rot || 0); }, true, '회전'));
+$('#segTilt').addEventListener('pointerdown', () => { if (S.selItem) record('기울기'); });
+$('#segTilt').addEventListener('input', (e: InEv) => itemOp(g => { g.tilt = clampTilt(e.target.value); }, false));
 $('#segVol').addEventListener('pointerdown', () => { if (S.selItem) record('클립 소리 조절'); });
 $('#segVol').addEventListener('input', (e: InEv) => itemOp(g => { g.vol = (+e.target.value) / 100; }, false));
 $('#btnVolMute').onclick = () => itemOp(g => { g.vol = 0; });
@@ -122,7 +126,7 @@ $('#grabStart').addEventListener('change', grabPreview);
 $('#grabPlay').onclick = grabPreview;
 $('#grabSave').onclick = grabSave;
 $('#sndTap').onchange = (e: InEv) => { S.set.beatTapSound = e.target.checked; };
-$('#btnSegReset').onclick = () => itemOp(g => { g.x = 0; g.y = 0; g.zoom = 1; g.flip = false; });
+$('#btnSegReset').onclick = () => itemOp(g => { g.x = 0; g.y = 0; g.zoom = 1; g.flip = false; g.rot = 0; g.tilt = 0; });
 $('#btnSplit').onclick = () => splitAt(now());
 $('#btnDup').onclick = dupItem;
 $('#btnDel').onclick = () => delItem();

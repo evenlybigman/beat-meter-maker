@@ -112,6 +112,8 @@
       <div class="row"><label>좌우</label><input type="range" id="segX" min="-100" max="100" step="1"><span class="v" id="vX"></span></div>
       <div class="row"><label>상하</label><input type="range" id="segY" min="-100" max="100" step="1"><span class="v" id="vY"></span></div>
       <div class="row"><label>확대</label><input type="range" id="segZoom" min="30" max="500" step="1"><span class="v" id="vZoom"></span></div>
+      <div class="row"><label>회전 <kbd>O</kbd></label><div class="seg" id="segRot"><button data-rot="0">0°</button><button data-rot="90">90°</button><button data-rot="180">180°</button><button data-rot="270">270°</button></div></div>
+      <div class="row"><label>기울기</label><input type="range" id="segTilt" min="-45" max="45" step="1"><span class="v" id="vTilt"></span></div>
       <div class="row"><label>좌우 반전</label><input type="checkbox" id="segFlip"><button id="btnSegReset" style="margin-left:auto">위치 초기화</button></div>
       <div class="btns"><button id="btnSplit"><svg class="i" aria-hidden="true"><use href="#i-cut"/></svg><span>자르기</span><kbd>C</kbd></button><button id="btnDup"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg><span>복제</span><kbd>D</kbd></button><button id="btnDel"><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg><span>삭제</span><kbd>Del</kbd></button></div>
     </div>
@@ -223,7 +225,7 @@
   <canvas id="strip"></canvas>
   <div class="keys hide" id="keys">
     <b>파형 클릭</b> 비트 추가/삭제 · <b>조각 끌기</b> 이동 · <b>조각 양끝 끌기</b> 길이 · <b>빈 트랙 더블클릭</b> 클립 넣기 · <b>미리보기 끌기/휠</b> 화면 안 위치·확대 ·
-    <b>Space</b> 재생 · <b>A</b> 현재 위치에 추가 · <b>Q</b> 맨 앞에 추가 · <b>E</b> 끝에 이어 붙이기 · <b>C</b> 자르기 · <b>F</b> 랜덤 채우기 · <b>D</b> 복제 · <b>Del</b> 삭제 · <b>R</b> 비트 녹음 · <b>B</b> 비트 찍기 · <b>Ctrl+휠</b> 확대/축소 · <b>Ctrl+Z</b> 되돌리기 · <b>Ctrl+Shift+Z</b> 다시 실행
+    <b>Space</b> 재생 · <b>A</b> 현재 위치에 추가 · <b>Q</b> 맨 앞에 추가 · <b>E</b> 끝에 이어 붙이기 · <b>C</b> 자르기 · <b>F</b> 랜덤 채우기 · <b>D</b> 복제 · <b>O</b> 영상 90° 회전 · <b>Del</b> 삭제 · <b>R</b> 비트 녹음 · <b>B</b> 비트 찍기 · <b>Ctrl+휠</b> 확대/축소 · <b>Ctrl+Z</b> 되돌리기 · <b>Ctrl+Shift+Z</b> 다시 실행
   </div>
   </div>
 </section>

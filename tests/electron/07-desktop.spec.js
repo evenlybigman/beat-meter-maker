@@ -179,3 +179,25 @@ test('28b. 업데이트 흉내가 없으면 바는 뜨지 않음 (테스트·개
   await a.page.waitForTimeout(1000);
   await expect(a.page.locator('#updBar')).toBeHidden();
 });
+
+test('30. 회전·기울기 내보내기: 90도면 위 빨강·아래 파랑, 270도면 반대, 기울이면 귀퉁이 검정', async ({ desk }) => {
+  const a = await desk.launch();
+  await loadMusic(a, [SONG.s128]);
+  await loadClips(a, ['halves.mp4']);   // 왼쪽 빨강 · 오른쪽 파랑
+  const run = async (rot, tilt) => {
+    await a.E(`(() => {
+      Object.assign(S.set, { layout: '1', res: '640x360', fps: 30, durMode: 'manual', durSec: 1, showOverlay: false, fit: 'cover' });
+      const c = S.clips.find(x => x.name === 'halves.mp4');
+      S.tracks = [[{ kind: 'video', src: c, srcName: c.name, start: 0, end: 1, off: 0, rate: 1, vol: 0, x: 0, y: 0, zoom: 1, flip: false, rot: ${rot}, tilt: ${tilt} }]];
+      refreshTimeline();
+    })()`);
+    const r = await exportNow(a);
+    expect(r && r.frames).toBe(30);
+    const at = (x, y) => colorName(pixel(desk.out, 0.5, x, y));
+    return { top: at(320, 60), bottom: at(320, 300), left: at(160, 180), right: at(480, 180), corner: at(6, 6) };
+  };
+  expect(await run(0, 0)).toMatchObject({ left: 'red', right: 'blue', corner: 'red' });
+  expect(await run(90, 0)).toMatchObject({ top: 'red', bottom: 'blue' });
+  expect(await run(270, 0)).toMatchObject({ top: 'blue', bottom: 'red' });
+  expect(await run(0, 15)).toMatchObject({ left: 'red', right: 'blue', corner: 'black' });
+});

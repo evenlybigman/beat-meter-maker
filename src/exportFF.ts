@@ -10,6 +10,7 @@ import { projDur } from './audio';
 import { curSnd, encodeWav } from './beatsound';
 import { desk, type DeskApi } from './desktop';
 import { cv, cx } from './dom';
+import { rotSize } from './itemTypes';
 import { pause } from './player';
 import { drawOverlay, drawPanelImg, layoutRects, panelCaches, panelCount } from './render';
 import { autoBitrate, outSize } from './settings';
@@ -56,7 +57,8 @@ function clipAudioList(dur: number) {
 interface Dec { id: string; w: number; h: number; c: HTMLCanvasElement; ctx: CanvasRenderingContext2D; has: boolean; done: boolean }
 async function openDec(D: DeskApi, g: VideoItem, t: number, r: { w: number; h: number }, n: number): Promise<Dec> {
   const c = g.src!, rate = g.rate || 1, vw = c.w || 1280, vh = c.h || 720;
-  const s = (S.set.fit === 'contain' ? Math.min(r.w / vw, r.h / vh) : Math.max(r.w / vw, r.h / vh)) * (g.zoom || 1);
+  const [bw, bh] = rotSize(g, vw, vh);   // 돌린 뒤 크기 기준 (미리보기와 같은 계산)
+  const s = (S.set.fit === 'contain' ? Math.min(r.w / bw, r.h / bh) : Math.max(r.w / bw, r.h / bh)) * (g.zoom || 1);
   const k = Math.min(1, s), w = even(vw * k), h = even(vh * k);   // 원본보다 크게는 받지 않음 (캔버스가 늘림)
   let ss = g.off + Math.max(0, t - g.start) * rate;
   if (ss >= c.dur - 0.02) ss = ss % Math.max(0.1, c.dur);
