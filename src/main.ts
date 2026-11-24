@@ -39,6 +39,7 @@ import { APP_INFO, closeAbout, openAbout } from './appInfo';
 import { $ } from './util';
 import { initUpdate } from './update';
 import { initClipFx } from './clipFxUi';
+import { initFullscreen } from './fullscreen';
 
 setPreset('q');
 $('#btnDiag').onclick = saveDiag;
@@ -54,6 +55,7 @@ fitCanvas();
 initAutosave();
 initUpdate();
 initClipFx();
+initFullscreen();
 updateHistoryUI();   // 모듈을 모두 불러온 뒤 (history 모듈 초기화 전에 부르면 안 됨)
 requestAnimationFrame(frame);
 

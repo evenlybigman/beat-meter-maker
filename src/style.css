@@ -153,6 +153,13 @@ ul.clips li button:hover{background:var(--panel3);color:var(--text)}
 #stage{flex:1 1 0;min-height:90px;display:flex;align-items:center;justify-content:center;background:#000;border-radius:var(--r-lg);box-shadow:0 0 0 1px var(--line);overflow:hidden;position:relative}
 #center.fixed #stage{flex:0 0 auto}
 #view{display:block;cursor:grab}
+#fsBar{display:none}
+#stage.full{border-radius:0;box-shadow:none}
+#stage.full #fsBar{display:flex;position:absolute;left:50%;bottom:22px;transform:translateX(-50%);width:min(900px,calc(100% - 40px));align-items:center;gap:12px;padding:8px 12px;background:rgba(13,14,18,.82);border:1px solid var(--line2);border-radius:var(--r-lg);backdrop-filter:blur(6px);transition:opacity .25s}
+#stage.full #fsSeek{flex:1}
+#stage.full #fsTime{font:500 12.5px var(--mono);color:var(--dim);white-space:nowrap}
+#stage.full.idle #fsBar{opacity:0;pointer-events:none}
+#stage.full.idle,#stage.full.idle #view{cursor:none}
 #empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--dim);gap:6px;pointer-events:none;text-align:center}
 #empty svg.i{width:34px;height:34px;color:var(--faint);stroke-width:1.5;margin-bottom:6px}
 #transport{display:flex;align-items:center;gap:8px}

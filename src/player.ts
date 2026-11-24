@@ -6,6 +6,7 @@ import { R, stopRec } from './beats';
 import { stopBeatSounds } from './beatsound';
 import { cv } from './dom';
 import { drawClipPreview, drawFrame, drawOverlay, drawStrip } from './render';
+import { fsTick } from './fullscreen';
 import { autoBitrate } from './settings';
 import { S } from './state';
 import { allItems } from './timeline';
@@ -29,6 +30,7 @@ function drawTick() {
   drawOverlay(t);
   drawStrip(t);
   drawClipPreview();
+  fsTick(t);
   const dur = S.music.dur || 0;
   $('#time').textContent = `${fmt(t)} / ${fmtShort(dur)}`;
   if (!seekUi.dragging && dur) $('#seek').value = Math.round(t / dur * 1000);

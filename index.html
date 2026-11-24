@@ -182,6 +182,7 @@
   <div id="restoreBar"><span id="restoreTxt"></span><button class="pri" id="restoreYes">복구</button><button id="restoreNo">삭제</button></div>
   <div id="stage"><canvas id="view" width="1280" height="720"></canvas>
     <div id="empty"><svg class="i" aria-hidden="true"><use href="#i-upload"/></svg><div>음악과 영상 클립을 이 창에 끌어다 놓으세요</div><div class="hint">음악을 넣으면 BPM 감지와 비트 생성이 자동으로 됩니다</div></div>
+    <div id="fsBar"><button id="fsPlay"></button><span id="fsTime"></span><input type="range" id="fsSeek" min="0" max="1000" value="0"><button id="fsExit" title="전체 화면 나가기 (Esc)"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg><span>나가기</span></button></div>
   </div>
   <div id="split" title="끌어서 미리보기 크기 조절 (더블클릭: 자동)"></div>
   <div id="lower">
@@ -193,6 +194,7 @@
     <select id="pvSize" title="미리보기 크기">
       <option value="auto">미리보기: 자동</option><option value="xs">미리보기: 아주 작게</option><option value="sm">미리보기: 작게</option><option value="md">미리보기: 보통</option><option value="lg">미리보기: 크게</option><option value="custom" hidden>미리보기: 직접 조절</option>
     </select>
+    <button id="btnFull" class="ic" title="전체 화면 (Ctrl+F · 미리보기 더블클릭)"><svg class="i" aria-hidden="true"><use href="#i-fit"/></svg></button>
     <button id="btnKeys" class="ic" title="단축키 안내 보이기/숨기기"><svg class="i" aria-hidden="true"><use href="#i-keys"/></svg></button>
   </div>
   <div id="maker">
@@ -245,7 +247,7 @@
   <canvas id="strip"></canvas>
   <div class="keys hide" id="keys">
     <b>파형 클릭</b> 비트 추가/삭제 · <b>조각 끌기</b> 이동 · <b>조각 양끝 끌기</b> 길이 · <b>빈 트랙 더블클릭</b> 클립 넣기 · <b>미리보기 끌기/휠</b> 화면 안 위치·확대 ·
-    <b>Space</b> 재생 · <b>A</b> 현재 위치에 추가 · <b>Q</b> 맨 앞에 추가 · <b>E</b> 끝에 이어 붙이기 · <b>C</b> 자르기 · <b>F</b> 랜덤 채우기 · <b>D</b> 복제 · <b>O</b> 영상 90° 회전 · <b>Ctrl·Shift+클릭</b> 여러 개 선택 · <b>빈 곳 끌기</b> 사각형으로 선택 · <b>Ctrl+A</b> 이 화면 조각 모두 · <b>Del</b> 삭제 · <b>R</b> 비트 녹음 · <b>B</b> 비트 찍기 · <b>Ctrl+휠</b> 확대/축소 · <b>Ctrl+Z</b> 되돌리기 · <b>Ctrl+Shift+Z</b> 다시 실행
+    <b>Space</b> 재생 · <b>A</b> 현재 위치에 추가 · <b>Q</b> 맨 앞에 추가 · <b>E</b> 끝에 이어 붙이기 · <b>C</b> 자르기 · <b>F</b> 랜덤 채우기 · <b>D</b> 복제 · <b>O</b> 영상 90° 회전 · <b>Ctrl·Shift+클릭</b> 여러 개 선택 · <b>빈 곳 끌기</b> 사각형으로 선택 · <b>Ctrl+A</b> 이 화면 조각 모두 · <b>Ctrl+F</b> 미리보기 전체 화면 · <b>Del</b> 삭제 · <b>R</b> 비트 녹음 · <b>B</b> 비트 찍기 · <b>Ctrl+휠</b> 확대/축소 · <b>Ctrl+Z</b> 되돌리기 · <b>Ctrl+Shift+Z</b> 다시 실행
   </div>
   </div>
 </section>

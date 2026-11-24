@@ -8,6 +8,7 @@ import { now, projDur, seek, setDuration, updateDurUI } from './audio';
 import { R, addBeat, hit, nearestBeat, removeBeatAt, setA, setB, startRec, stopRec, tap } from './beats';
 import { cv, strip } from './dom';
 import { randomFill } from './fill';
+import { toggleFullscreen } from './fullscreen';
 import { togglePlay } from './player';
 import { TL_BOX, layoutRects, panelCount, type PanelRect } from './render';
 import type { Item, VideoItem } from './types';
@@ -221,7 +222,8 @@ window.addEventListener('keydown', e => {
   else if (k === 'a' && !e.ctrlKey && !e.metaKey) { addSelectedClip(); }
   else if (k === 'e' && !e.ctrlKey && !e.metaKey) { appendSelectedClip(); }
   else if (k === 'q' && !e.ctrlKey && !e.metaKey) { prependSelectedClip(); }
-  else if (k === 'f' && !e.ctrlKey && !e.metaKey) { randomFill(); }
+  else if (k === 'f' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); toggleFullscreen(); }
+  else if (k === 'f') { randomFill(); }
   else if (k === 'd' && !e.ctrlKey && !e.metaKey) { dupItem(); }
   else if (k === 'o' && !e.ctrlKey && !e.metaKey) { rotateSel(); }
   else if (k === '[') { setA(); }
