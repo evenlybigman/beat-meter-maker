@@ -228,3 +228,34 @@ test('30. 회전·기울기 내보내기: 90도면 위 빨강·아래 파랑, 27
   expect(await run(270, 0)).toMatchObject({ top: 'blue', bottom: 'red' });
   expect(await run(0, 15)).toMatchObject({ left: 'red', right: 'blue', corner: 'black' });
 });
+
+test('33. 클립 10개 랜덤 채우기 후 재생: 나와야 할 클립의 재생기가 항상 있고 준비됨, 화면당 재생기 2개 이하', async ({ desk }) => {
+  test.setTimeout(90_000);
+  const a = await desk.launch();
+  await loadMusic(a, [SONG.s128]);
+  await loadClips(a, Array.from({ length: 10 }, (_, i) => `m${i + 1}.mp4`));
+  await a.page.click('.tabs button[data-tab="tCut"]');
+  await a.page.fill('#fillEvery', '2');
+  await a.page.locator('body').click({ position: { x: 5, y: 5 } });
+  await a.page.keyboard.press('f');
+  expect(await a.E('new Set(S.tracks[0].map(g => g.srcName)).size')).toBeGreaterThan(5);
+  // 재생하면서 30ms마다: 지금 나와야 할 클립의 video가 있는지, 준비됐는지, video 수
+  await a.E(`window.__mon = []; window.__monT = setInterval(() => {
+    if (!S.playing) return;
+    const t = now(); let g = null; for (const x of S.tracks[0]) { if (x.start > t) break; if (x.end > t) g = x; }
+    if (!g) return;
+    const vs = [...document.querySelectorAll('#vids video')];
+    const v = vs.find(v => v.src === g.src.url);
+    window.__mon.push([t, g.start, !!v, v ? v.readyState >= 2 && !v.seeking : false, vs.length]);
+  }, 30)`);
+  await a.page.keyboard.press('Space');
+  await a.page.waitForTimeout(8000);
+  await a.page.keyboard.press('Space');
+  const m = await a.E('clearInterval(window.__monT), window.__mon');
+  expect(m.length).toBeGreaterThan(100);
+  const missing = m.filter(r => !r[2]);                        // 재생기 자체가 없음 (예전 버그: 방금 만든 것이 바로 지워짐)
+  const notReady = m.filter(r => !r[3] && r[0] - r[1] > 0.3);  // 조각 시작 0.3초 뒤에도 준비 안 됨
+  expect(missing.length, '나와야 할 클립의 재생기가 없음').toBe(0);
+  expect(notReady.length / m.length, '준비 안 된 비율').toBeLessThan(0.05);
+  expect(Math.max(...m.map(r => r[4])), '화면당 재생기 수').toBeLessThanOrEqual(2);
+});

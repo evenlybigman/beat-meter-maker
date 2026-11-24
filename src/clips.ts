@@ -6,7 +6,9 @@ import { limitDur } from './audio';
 import { refreshEmpty } from './player';
 import { panelCount, releaseVids } from './render';
 import { S } from './state';
-import { addSelectedClip, allItems, newItem, pickModeOf, refreshItemEditor, refreshTimeline, selectClip, useLen } from './timeline';
+import { addClipsAt, addSelectedClip, allItems, newItem, pickModeOf, refreshItemEditor, refreshTimeline, selectClip, tlSnap, useLen } from './timeline';
+import { stripHit } from './timelineInput';
+import { strip } from './dom';
 import { $, fmtShort, toast } from './util';
 import { desk, filePath, type PathFile } from './desktop';
 import { ic } from './icons';
@@ -77,13 +79,67 @@ export function moveClip(c: Clip, d: number) {
   const i = S.clips.indexOf(c), j = i + d; if (j < 0 || j >= S.clips.length) return;
   [S.clips[i], S.clips[j]] = [S.clips[j], S.clips[i]]; renderClipList(); refreshItemEditor();
 }
+/* ---------- 클립 목록 끌기 ----------
+   목록 안에서 위아래로 끌기 = 지나간 클립 여러 개 선택 (Ctrl을 누른 채면 기존 선택에 더함)
+   목록 밖으로 끌고 나가 타임라인에 놓기 = 고른 클립을 그 자리에 목록 순서대로 이어서 넣기
+   이미 여러 개 고른 클립 중 하나를 끌면 선택은 그대로 두고 바로 타임라인으로 옮기기 */
+const CD = { d: null as null | { idx: number; x: number; y: number; mode: '' | 'sel' | 'carry'; add: boolean; base: Clip[]; carry: Clip[] }, suppress: false };
+function clipDown(e: PointerEvent, idx: number) {
+  if (e.button !== 0 || (e.target as HTMLElement).closest('button') || e.shiftKey) return;
+  CD.d = { idx, x: e.clientX, y: e.clientY, mode: '', add: e.ctrlKey || e.metaKey, base: S.clips.filter(c => S.selClips.includes(c)), carry: [] };
+}
+function clipIdxAt(y: number) {
+  const lis = [...$('#clipList').children] as HTMLElement[]; if (!lis.length) return -1;
+  for (let i = 0; i < lis.length; i++) { const r = lis[i].getBoundingClientRect(); if (y < r.bottom) return i; }
+  return lis.length - 1;
+}
+const ghost = () => { let g = document.getElementById('clipGhost'); if (!g) { g = document.createElement('div'); g.id = 'clipGhost'; document.body.appendChild(g); } return g; };
+window.addEventListener('pointermove', e => {
+  const d = CD.d; if (!d) return;
+  if (!d.mode) {
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 5) return;
+    const c0 = S.clips[d.idx]; if (!c0) { CD.d = null; return; }
+    const inMulti = S.selClips.length > 1 && S.selClips.includes(c0);
+    if (inMulti) { d.mode = 'carry'; d.carry = S.clips.filter(c => S.selClips.includes(c) && c.dur > 0); }
+    else { d.mode = 'sel'; if (d.add) { if (!S.selClips.includes(c0)) selectClip(c0, 'toggle'); } else selectClip(c0); }
+  }
+  const ul = $('#clipList'), lr = ul.getBoundingClientRect();
+  const inside = e.clientX >= lr.left && e.clientX <= lr.right && e.clientY >= lr.top - 24 && e.clientY <= lr.bottom + 24;
+  if (d.mode === 'sel') {
+    if (inside) {
+      const j = clipIdxAt(e.clientY), a = Math.min(d.idx, j), b = Math.max(d.idx, j);
+      const range = S.clips.slice(a, b + 1);
+      S.selClips = d.add ? [...new Set([...d.base, ...range])] : range;
+      renderClipList();
+      if (e.clientY > lr.bottom - 14) ul.scrollTop += 8; else if (e.clientY < lr.top + 14) ul.scrollTop -= 8;   // 끝에 닿으면 목록 스크롤
+      return;
+    }
+    d.mode = 'carry'; d.carry = S.clips.filter(c => S.selClips.includes(c) && c.dur > 0);   // 목록 밖으로 나가면 고른 것을 들고 감
+  }
+  const g = ghost(), n = d.carry.length;
+  g.textContent = n > 1 ? `클립 ${n}개` : n ? d.carry[0].name : '';
+  g.style.display = n ? 'block' : 'none'; g.style.left = e.clientX + 14 + 'px'; g.style.top = e.clientY + 10 + 'px';
+  document.body.classList.add('carrying');
+});
+window.addEventListener('pointerup', e => {
+  const d = CD.d; CD.d = null; if (!d) return;
+  const g = document.getElementById('clipGhost'); if (g) g.style.display = 'none';
+  document.body.classList.remove('carrying');
+  if (!d.mode) return;
+  CD.suppress = true; setTimeout(() => { CD.suppress = false; }, 0);   // 끌고 난 뒤의 클릭은 무시
+  if (d.mode !== 'carry' || !d.carry.length) return;
+  const sr = strip.getBoundingClientRect();
+  if (e.clientX < sr.left || e.clientX > sr.right || e.clientY < sr.top || e.clientY > sr.bottom) return;   // 타임라인 밖에 놓으면 취소
+  const h = stripHit(e);
+  addClipsAt(d.carry, typeof h.lane === 'number' && h.lane >= 0 ? h.lane : S.track, tlSnap(h.t));
+});
 export function renderClipList() {
   const ul = $('#clipList'); ul.innerHTML = '';
   const multi = S.selClips.length > 1 && !!S.selClip && S.selClips.includes(S.selClip);
   const bar = $('#clipSelBar'), n = multi ? S.selClips.length : 0;
   bar.style.display = S.clips.length > 1 ? 'flex' : 'none';
   bar.classList.toggle('on', n > 1);
-  $('#clipSelTxt').textContent = n > 1 ? `클립 ${n}개 선택 · A·E·Q로 한 번에` : 'Ctrl+클릭: 여러 개 고르기 · Shift+클릭: 범위로 고르기';
+  $('#clipSelTxt').textContent = n > 1 ? `클립 ${n}개 선택 · A·E·Q로 한 번에` : '끌기·Shift+클릭: 여러 개 고르기 · Ctrl+클릭: 하나씩 더하기';
   $('#clipSelClear').style.display = $('#clipSelDel').style.display = n > 1 ? '' : 'none';
   const opt = document.querySelector<HTMLOptionElement>('#fillClips option[value="sel"]'); if (opt) opt.textContent = `선택한 클립만 (${Math.max(1, n)}개)`;
   S.clips.forEach((c, idx) => {
@@ -93,11 +149,8 @@ export function renderClipList() {
     const nm = li.querySelector<HTMLElement>('.n')!; nm.textContent = `#${idx + 1} ${c.name}`; nm.title = c.name + ' — 타임라인으로 끌어다 놓기';
     li.classList.toggle('sel', multi ? S.selClips.includes(c) : S.selClip === c);
     li.classList.toggle('cur', multi && S.selClip === c);
-    li.draggable = true;
-    // 고른 클립 중 하나를 끌면 고른 클립 모두를 (목록 순서대로) 끌어다 놓음
-    li.ondragstart = e => { const ids = multi && S.selClips.includes(c) ? S.clips.map((x, i) => S.selClips.includes(x) ? i : -1).filter(i => i >= 0) : [idx]; e.dataTransfer!.setData('text/clip', ids.join(',')); e.dataTransfer!.effectAllowed = 'copy'; };
-    li.onmousedown = e => { if (e.shiftKey) e.preventDefault(); };   // Shift+클릭할 때 글자가 선택되지 않게
-    li.onclick = e => selectClip(c, pickModeOf(e));
+    li.onpointerdown = e => clipDown(e, idx);
+    li.onclick = e => { if (CD.suppress) return; selectClip(c, pickModeOf(e)); };
     li.ondblclick = () => { selectClip(c); addSelectedClip(); };
     const [u, d, x] = li.querySelectorAll('button');
     u.onclick = e => { e.stopPropagation(); moveClip(c, -1); }; d.onclick = e => { e.stopPropagation(); moveClip(c, 1); }; x.onclick = e => { e.stopPropagation(); removeClip(c); };

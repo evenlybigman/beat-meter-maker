@@ -143,13 +143,6 @@ strip.addEventListener('dblclick', e => {
   const cs = pickedClips(); if (!cs.length) return toast('먼저 클립을 불러와 주세요');
   addClipsAt(cs, h.lane, tlSnap(h.t));
 });
-strip.addEventListener('dragover', e => { const dt = e.dataTransfer; if (dt && [...dt.types].includes('text/clip')) { e.preventDefault(); dt.dropEffect = 'copy'; } });
-strip.addEventListener('drop', e => {
-  const idx = e.dataTransfer ? e.dataTransfer.getData('text/clip') : ''; if (idx === '') return;
-  e.preventDefault(); e.stopPropagation();
-  const cs = idx.split(',').map(i => S.clips[+i]).filter(Boolean), h = stripHit(e);   // 여러 개면 목록 순서대로 이어서
-  addClipsAt(cs, typeof h.lane === 'number' && h.lane >= 0 ? h.lane : S.track, tlSnap(h.t));
-});
 strip.addEventListener('wheel', e => {
   e.preventDefault();
   if (e.ctrlKey || e.metaKey) zoomBy(e.deltaY > 0 ? 1.15 : 1 / 1.15);

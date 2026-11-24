@@ -12,6 +12,7 @@
   <h1><i class="logo"></i>Beat Meter Maker</h1>
   <span class="hint" id="status">파일을 창에 끌어다 놓으면 시작합니다 (영상·음악·프로젝트 .json)</span>
   <div class="sp"></div>
+  <button id="btnNew" class="ghost" title="지금 작업을 닫고 새로 시작"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span>새 프로젝트</span></button>
   <button id="btnSave" class="ghost"><svg class="i" aria-hidden="true"><use href="#i-save"/></svg><span>프로젝트 저장</span></button>
   <button id="btnLoad" class="ghost"><svg class="i" aria-hidden="true"><use href="#i-open"/></svg><span>프로젝트 열기</span></button>
   <button class="pri" id="btnExport"><svg class="i" aria-hidden="true"><use href="#i-export"/></svg><span>영상 내보내기</span></button>
@@ -76,9 +77,8 @@
 
   <div class="tab" id="tCut">
     <div class="sub">타임라인</div>
-    <div class="hint">클립 목록에서 타임라인으로 끌어다 놓거나, 클립을 고르고 A 키(또는 아래 버튼)를 누르면 현재 위치에 들어갑니다. 조각은 끌어서 옮기고, 양끝을 끌어서 길이를 조절하고, 위아래로 끌어 다른 화면으로 옮길 수 있습니다.</div>
     <div class="row" id="trackRow"><label>편집할 화면</label><div class="btns" id="trackBtns" style="margin:0"></div></div>
-    <div class="btns"><button class="pri" id="btnAddItem"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span>선택한 클립을 현재 위치에 추가</span><kbd>A</kbd></button><button id="btnPrependItem"><svg class="i" aria-hidden="true"><use href="#i-first"/></svg><span>맨 앞에 추가</span><kbd>Q</kbd></button><button id="btnAppendItem"><svg class="i" aria-hidden="true"><use href="#i-last"/></svg><span>끝에 이어 붙이기</span><kbd>E</kbd></button><button id="btnCopyTrack">화면 1 배치 복사해오기</button></div>
+    <div class="btns" id="copyTrackRow"><button id="btnCopyTrack">화면 1 배치 복사해오기</button></div>
     <div class="info" id="segInfo"></div>
     <div class="card">
       <div class="sub">랜덤 자동 채우기</div>
@@ -216,6 +216,7 @@
     <button id="tlFill" title="여러 클립을 랜덤으로 자동 채우기 (설정은 편집 탭)"><svg class="i" aria-hidden="true"><use href="#i-shuffle"/></svg><span>랜덤 채우기</span><kbd>F</kbd></button>
     <button id="tlDup" class="ic" title="복제 (D)"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg></button>
     <button id="tlDel" class="ic" title="삭제 (Del)"><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg></button>
+    <button id="tlClear" title="모든 화면의 영상 조각 지우기 (Ctrl+Z로 되돌리기)"><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg><span>전체 삭제</span></button>
     <span class="sep"></span>
     <label><input type="checkbox" id="tlSnap" checked> 비트·조각에 붙이기</label>
     <span class="sep"></span>

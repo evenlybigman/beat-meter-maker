@@ -38,4 +38,7 @@ ff(*ins, '-filter_complex', ''.join(f'[{i}]' for i in range(6)) + 'concat=n=6:v=
 # 왼쪽 절반 빨강, 오른쪽 절반 파랑 (3초) — 회전 검사용 (90도 돌리면 위 빨강·아래 파랑)
 ff('-f', 'lavfi', '-i', 'color=c=red:s=160x180:r=30:d=3', '-f', 'lavfi', '-i', 'color=c=blue:s=160x180:r=30:d=3',
    '-filter_complex', '[0][1]hstack', '-pix_fmt', 'yuv420p', '-b:v', '100k', os.path.join(D, 'halves.mp4'))
+# 서로 다른 클립 10개 (10초, 작은 크기) — 클립이 많을 때 미리보기 재생 검사용
+for i in range(1, 11):
+    ff('-f', 'lavfi', '-i', f'testsrc2=s=320x180:r=30:d=10', '-vf', f'hue=h={i * 36}', '-pix_fmt', 'yuv420p', '-g', '30', '-b:v', '50k', os.path.join(D, f'm{i}.mp4'))
 print('ok')

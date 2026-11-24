@@ -58,17 +58,21 @@ const POOL_PER_PANEL = 2;
 interface PoolVid { k: number; c: Clip; v: MediaVid; used: number }
 const pool: PoolVid[] = [];
 let useTick = 0;
+/** 이번 프레임에 쓴 video (지금 조각·다음 조각) — 정리 대상에서 뺌 */
+let frameUsed = new Set<PoolVid>();
 export function getVid(c: Clip, k: number) {
   let e = pool.find(x => x.k === k && x.c === c);
   if (!e) {
     const v = document.createElement('video');
     v.muted = true; v.playsInline = true; v.preload = 'auto'; v.loop = true; v.src = c.url;
     $('#vids').appendChild(v);
-    e = { k, c, v, used: 0 }; pool.push(e);
-    const mine = pool.filter(x => x.k === k);
-    if (mine.length > POOL_PER_PANEL) releaseVid(mine.reduce((a, b) => (a.used <= b.used ? a : b)));
+    e = { k, c, v, used: ++useTick }; pool.push(e);
+    // 넘치면 가장 오래 안 쓴 것부터 정리. 방금 만든 것과 이번 프레임에 쓰는 것은 빼고
+    // (예전엔 새 video의 사용 표시를 정리 뒤에 붙여서 방금 만든 것이 바로 지워짐 → 클립이 많으면 화면이 멈춤)
+    const mine = pool.filter(x => x.k === k && x !== e && !frameUsed.has(x));
+    if (pool.filter(x => x.k === k).length > POOL_PER_PANEL && mine.length) releaseVid(mine.reduce((a, b) => (a.used <= b.used ? a : b)));
   }
-  e.used = ++useTick;
+  e.used = ++useTick; frameUsed.add(e);
   return e.v;
 }
 /** video 요소를 완전히 정리 (디코더·버퍼·소리 연결 해제) */
@@ -101,6 +105,7 @@ export function driveVid(v: HTMLVideoElement, rate: number, want: number) {
   }
 }
 export function syncAll(t: number): Panel[] {
+  frameUsed = new Set();
   const active = new Set<HTMLVideoElement>(), out: Panel[] = [], shared: { c: Clip; rate: number; want: number; v: MediaVid; vol: number }[] = [];
   for (let k = 0; k < panelCount(); k++) {
     const tr = S.tracks[k] || [];

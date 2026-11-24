@@ -95,4 +95,6 @@ export function updateHistoryUI() {
   u.title = past.length ? `되돌리기: ${past[past.length - 1].label} (Ctrl+Z)` : '되돌릴 작업 없음';
   r.title = future.length ? `다시 실행: ${future[future.length - 1].label} (Ctrl+Shift+Z)` : '다시 실행할 작업 없음';
 }
+/** 기록 모두 비우기 (새 프로젝트) */
+export function clearHistory() { past.length = 0; future.length = 0; updateHistoryUI(); }
 export const historySize = () => ({ past: past.length, future: future.length });

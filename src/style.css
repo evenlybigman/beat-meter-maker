@@ -119,6 +119,9 @@ ul.clips{list-style:none;margin:8px 0 0;padding:0;max-height:150px;overflow-y:au
 ul.clips li{display:flex;align-items:center;gap:7px;padding:5px 6px 5px 9px;border-radius:var(--r);background:var(--panel2);border:1px solid var(--line);margin-bottom:4px;cursor:pointer;transition:border-color .12s,background .12s}
 ul.clips li:hover{border-color:var(--line2)}
 ul.clips li.sel{border-color:rgba(var(--acc-rgb),.65);background:rgba(var(--acc-rgb),.07)}
+ul.clips li{user-select:none;-webkit-user-select:none}
+#clipGhost{position:fixed;z-index:40;pointer-events:none;display:none;padding:4px 10px;border-radius:var(--r);background:var(--acc);color:#04201c;font-weight:600;font-size:12px;box-shadow:0 6px 20px rgba(0,0,0,.4)}
+body.carrying,body.carrying *{cursor:copy!important}
 ul.clips li.cur{border-color:var(--acc);box-shadow:inset 3px 0 0 var(--acc)}
 .clipsel{align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px;font-size:11.5px;color:var(--faint)}
 .clipsel span{flex:1;min-width:0}

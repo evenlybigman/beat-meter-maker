@@ -108,6 +108,7 @@ export function renderTrackBtns() {
   const n = panelCount(), box = $('#trackBtns'); if (!box) return;
   $('#trackRow').style.display = n > 1 ? 'flex' : 'none';
   $('#btnCopyTrack').style.display = n > 1 && S.track > 0 ? '' : 'none';
+  $('#copyTrackRow').style.display = n > 1 && S.track > 0 ? '' : 'none';
   box.innerHTML = '';
   for (let k = 0; k < n; k++) { const b = document.createElement('button'); b.textContent = String(k + 1); b.classList.toggle('on', k === S.track); b.onclick = () => selectTrack(k); box.appendChild(b); }
 }
@@ -271,6 +272,12 @@ export function delItem() {
     S.selItem = null; S.selItems = [];
   });
   return true;
+}
+/** 전체 삭제: 모든 화면의 영상 조각 (음악 트랙은 그대로). 되돌리기 가능 */
+export function clearAllItems() {
+  const n = allItems().length; if (!n) return toast('지울 조각이 없습니다');
+  commit('조각 전체 삭제', () => { S.tracks = S.tracks.map(() => []); S.selItem = null; S.selItems = []; });
+  toast(`영상 조각 ${n}개를 모두 지웠습니다 — Ctrl+Z로 되돌릴 수 있습니다`, 3500);
 }
 /** 지금 화면 트랙의 조각 모두 선택 (Ctrl+A) */
 export function selectAllInTrack() {

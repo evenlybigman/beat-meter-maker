@@ -1,21 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Juke — Beat Meter Maker
 // 프로젝트 저장·불러오기·검증, 자동 저장
-import { record } from './history';
+import { clearHistory, record } from './history';
 import type { AudioItem, ProjectFile, VideoItem } from './types';
 import { itemFromFile, itemToFile } from './itemTypes';
 /** 자동 저장 한 건 */
 export interface AutosaveEntry { time: number; data: ProjectFile }
-import { syncBeatInputs, updateBeatInfo } from './beats';
-import { SND, loadSoundData } from './beatsound';
+import { R, stopRec, syncBeatInputs, updateBeatInfo } from './beats';
+import { SND, loadSoundData, renderSndUI } from './beatsound';
 import { addClips, renderClipList } from './clips';
 import { desk, pathFile } from './desktop';
 import { setMusicVol } from './events';
-import { refreshEmpty } from './player';
+import { pause, refreshEmpty } from './player';
 import { applySettingsToUI } from './settings';
 import { afterAudioChange, loadMusicFiles, renderSongList } from './songs';
 import { DEFAULTS, S } from './state';
-import { ensureTracks, sortTrack } from './timeline';
+import { ensureTracks, selectClip, sortTrack } from './timeline';
+import { releaseVids } from './render';
+import { seek } from './audio';
 import { $, baseName, download, toast } from './util';
 
 /* ---------- 프로젝트 ---------- */
@@ -108,6 +110,25 @@ export function validateProject(d: any): string | null {
   return null;
 }
 
+/** 새 프로젝트: 음악·클립·비트·조각·설정·내 소리·편집 기록을 모두 비움 (저장 안 한 작업이 있으면 확인) */
+export function newProject() {
+  if (S.exporting) return toast('내보내는 중에는 새 프로젝트를 시작할 수 없습니다');
+  if (!isEmptyProject(projectData()) && !confirm('지금 작업을 닫고 새 프로젝트를 시작할까요?\n저장하지 않은 내용은 사라지고 되돌릴 수 없습니다.')) return;
+  if (R.on) stopRec();
+  pause();
+  releaseVids(() => true);
+  for (const c of S.clips) if (c.url.startsWith('blob:')) URL.revokeObjectURL(c.url);
+  S.clips = []; S.selClips = []; selectClip(null);
+  const tv = $('#trimVid'); tv.removeAttribute('src'); try { tv.load(); } catch (e) {}
+  S.songs = []; S.audio = []; S.beats = []; S.bpm = 120; S.offset = 0; S.musicStart = 0;
+  S.tracks = [[]]; S.track = 0; S.selItem = null; S.selItems = []; S.pendingTrims = {};
+  S.set = { ...DEFAULTS }; setMusicVol(1);
+  SND.list = SND.list.filter(x => !x.custom);
+  clearHistory();
+  applySettingsToUI(); renderSndUI(); syncBeatInputs(); renderClipList(); updateBeatInfo(); ensureTracks();
+  afterAudioChange(); renderSongList(); refreshEmpty(); seek(0);
+  toast('새 프로젝트를 시작했습니다');
+}
 export async function loadProject(file: File) {
   let d: any; try { d = JSON.parse(await file.text()); } catch (e) { return toast('프로젝트 파일을 읽을 수 없습니다 (JSON 형식이 아님)', 4000); }
   const err = validateProject(d);
