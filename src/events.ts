@@ -6,7 +6,7 @@ import { btnHtml } from './icons';
 import { ensureAudio, musicGain, now, projDur, seek, setDuration, updateDurUI } from './audio';
 import { R, applyPattern, applyRange, generateAll, getRange, hit, nearestBeat, setA, setB, setPreset, startRec, stopRec, syncBeatInputs, tap } from './beats';
 import { SND, addSoundFile, beatGain, curSnd, grabPreview, grabSave, previewSnd, renderSndUI, setGrabStart, setSndOn } from './beatsound';
-import { addClips } from './clips';
+import { addClips, removeSelectedClips } from './clips';
 import { randomFill } from './fill';
 import { cancelExport, exportVideo, seekUi, togglePlay } from './player';
 import { loadProject, saveProject } from './project';
@@ -14,9 +14,16 @@ import { applySettingsToUI } from './settings';
 import { loadMusicFiles, runDetect } from './songs';
 import { S } from './state';
 import { clampTilt } from './itemTypes';
-import { addSelectedClip, allItems, appendSelectedClip, copyTrack, delItem, dupItem, itemOp, prependSelectedClip, setTrim, splitAt, trackOf } from './timeline';
+import { selectClip, selectedItems, addSelectedClip, allItems, appendSelectedClip, copyTrack, delItem, dupItem, itemOp, prependSelectedClip, setTrim, splitAt, trackOf } from './timeline';
 import { zoomBy } from './timelineInput';
 import { $, fmt, status, toast } from './util';
+/** 기준 조각의 시작을 t로. 여러 개 선택했으면 모두 같은 만큼 옮김 (서로 간격 유지, 0초 앞으로는 안 감) */
+function moveSelTo(t: number) {
+  const g0 = S.selItem; if (!g0) return toast('먼저 타임라인에서 조각을 선택하세요');
+  const gs = selectedItems().filter(x => x.kind === g0.kind);
+  const d = Math.max(t - g0.start, -Math.min(...gs.map(x => x.start)));
+  itemOp(g => { g.start += d; g.end += d; });
+}
 /** 입력칸 이벤트 (target이 입력 요소) */
 type InEv = Event & { target: HTMLInputElement };
 
@@ -50,6 +57,8 @@ document.querySelectorAll<HTMLElement>('.tabs button').forEach(b => b.onclick = 
   document.querySelectorAll<HTMLElement>('.tab').forEach(p => p.classList.toggle('on', p.id === b.dataset.tab));
 });
 // 클립 사용 구간
+$('#clipSelClear').onclick = () => selectClip(S.selClip);
+$('#clipSelDel').onclick = removeSelectedClips;
 $('#trimIn').onchange = (e: InEv) => setTrim('in', e.target.value);
 $('#trimOut').onchange = (e: InEv) => setTrim('out', e.target.value);
 $('#btnTrimIn').onclick = () => setTrim('in', $('#trimVid').currentTime);
@@ -75,7 +84,7 @@ $('#btnCopyTrack').onclick = copyTrack;
 $('#segClip').onchange = (e: InEv) => itemOp(g => { const c = S.clips[+e.target.value]; if (!c) return; g.src = c; g.srcName = c.name; if (g.off >= c.dur) g.off = c.inPt; });
 $('#segOff').onchange = (e: InEv) => itemOp(g => { if (g.src) g.off = Math.max(0, Math.min(g.src.dur - 0.05, +e.target.value || 0)); });
 $('#btnSegOffPrev').onclick = () => itemOp(g => { if (g.src !== S.selClip) return toast('소스 탭 미리보기의 클립과 이 조각의 클립이 다릅니다'); g.off = $('#trimVid').currentTime; });
-$('#segStart').onchange = (e: InEv) => itemOp(g => { const len = g.end - g.start; g.start = Math.max(0, +e.target.value || 0); g.end = g.start + len; });
+$('#segStart').onchange = (e: InEv) => moveSelTo(+e.target.value || 0);
 $('#segLen').onchange = (e: InEv) => itemOp(g => { g.end = g.start + Math.max(0.1, +e.target.value || 0.1); });
 $('#btnSegSnap').onclick = () => itemOp(g => { const nb = nearestBeat(g.start); if (nb.i >= 0) { const len = g.end - g.start; g.start = S.beats[nb.i]; g.end = g.start + len; } });
 $('#btnSegFill').onclick = () => itemOp(g => { const tr = S.tracks[trackOf(g)]; const nx = tr.find(x => x !== g && x.start > g.start + 0.01); g.end = nx ? nx.start : (S.music.dur || g.end); });
@@ -150,7 +159,7 @@ $('#durMode').onchange = (e: InEv) => { if (e.target.value === 'manual') setDura
 $('#durSec').onchange = (e: InEv) => setDuration(+e.target.value || 1);
 $('#durNow').onclick = () => { if (now() < 1) return toast('재생 위치를 영상이 끝날 곳으로 옮긴 뒤 누르세요'); commit('영상 길이 정하기', () => setDuration(now())); toast(`영상 길이를 ${fmt(now())}로 정했습니다`); };
 $('#audOff').onchange = (e: InEv) => itemOp(g => { g.off = +e.target.value || 0; });
-$('#audStart').onchange = (e: InEv) => itemOp(g => { const len = g.end - g.start; g.start = Math.max(0, +e.target.value || 0); g.end = g.start + len; });
+$('#audStart').onchange = (e: InEv) => moveSelTo(+e.target.value || 0);
 $('#audLen').onchange = (e: InEv) => itemOp(g => { g.end = g.start + Math.max(0.1, +e.target.value || 0.1); });
 $('#audVol').addEventListener('input', (e: InEv) => { const g = S.selItem; if (!g || g.kind !== 'audio') return; g.vol = +e.target.value / 100; $('#vAudVol').textContent = e.target.value + '%'; });
 $('#audVol').addEventListener('pointerdown', () => { if (S.selItem && S.selItem.kind === 'audio') record('음악 볼륨 조절'); });

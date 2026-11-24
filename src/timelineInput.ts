@@ -8,10 +8,10 @@ import { R, addBeat, hit, nearestBeat, removeBeatAt, setA, setB, startRec, stopR
 import { cv, strip } from './dom';
 import { randomFill } from './fill';
 import { togglePlay } from './player';
-import { layoutRects, panelCount, type PanelRect } from './render';
+import { TL_BOX, layoutRects, panelCount, type PanelRect } from './render';
 import type { Item, VideoItem } from './types';
 import { S } from './state';
-import { AUD_H, LANE_H, WAVE_H, activeIdx, listOf, addItemAt, addSelectedClip, allItems, appendSelectedClip, delItem, dupItem, rotateSel, prependSelectedClip, refreshItemEditor, renderTrackBtns, selectItem, selectTrack, sortTrack, splitAt, tlSnap, trackOf, updateSegInfo, viewStart } from './timeline';
+import { AUD_H, LANE_H, WAVE_H, activeIdx, listOf, addClipsAt, addSelectedClip, allItems, appendSelectedClip, delItem, dupItem, isSelected, pickModeOf, pickedClips, rotateSel, selectAllInTrack, selectedItems, prependSelectedClip, refreshItemEditor, renderTrackBtns, selectItem, selectTrack, sortTrack, splitAt, tlSnap, trackOf, updateSegInfo, viewStart } from './timeline';
 import { $, lowerBound, toast } from './util';
 
 // 편집기 마우스: 위쪽(파형) = 비트, 아래쪽(트랙) = 영상 조각
@@ -20,8 +20,12 @@ type ItemMode = 'move' | 'trimL' | 'trimR';
 /** 편집기에서 누르고 있는 동작: 영상 길이 끌기 / 조각 옮기기·길이 조절 / 재생 위치 끌기 */
 type StripDrag =
   | { type: 'dur' }
-  | { type: 'item'; g: Item; mode: ItemMode; x: number; lane: Lane; moved: boolean; orig: { start: number; end: number; off: number }; pts: number[] }
-  | { type: 'scrub'; x: number; t0: number; drag: boolean; lane: Lane };
+  | { type: 'item'; g: Item; mode: ItemMode; x: number; lane: Lane; moved: boolean; orig: { start: number; end: number; off: number }; pts: number[];
+      /** 같이 옮길 조각들(여러 개 선택)과 원래 위치, collapse: 안 끌고 떼면 이것만 선택 */
+      group: { g: Item; start: number; end: number }[]; collapse: boolean }
+  | { type: 'scrub'; x: number; t0: number; drag: boolean; lane: Lane }
+  /** 빈 곳에서 끌어 사각형 안 조각 고르기. add: Ctrl·Shift를 누른 채면 기존 선택에 더함 */
+  | { type: 'box'; x0: number; y0: number; drag: boolean; lane: Lane; add: boolean; base: Item[]; base0: Item | null };
 export let sDown: StripDrag | null = null;
 export function stripHit(e: MouseEvent) {
   const r = strip.getBoundingClientRect(), dpr = devicePixelRatio;
@@ -45,10 +49,10 @@ export function itemAt(lane: Lane, x: number): { g: Item; mode: ItemMode } | nul
   }
   return null;
 }
-export function snapPoints(except: Item | null) {
+export function snapPoints(except: Item[]) {
   const pts = [0, now()];
   if (S.music.dur) pts.push(S.music.dur);
-  if ($('#tlSnap').checked) { for (const b of S.beats) pts.push(b); for (const g of [...allItems(), ...S.audio]) if (g !== except && g.end != null) pts.push(g.start, g.end); }
+  if ($('#tlSnap').checked) { for (const b of S.beats) pts.push(b); for (const g of [...allItems(), ...S.audio]) if (!except.includes(g) && g.end != null) pts.push(g.start, g.end); }
   return pts.sort((x, y) => x - y);
 }
 export function snapTo(v: number, pts: number[], tol: number) { const i = lowerBound(pts, v); let best = v, bd = tol; for (const j of [i - 1, i]) if (j >= 0 && j < pts.length && Math.abs(pts[j] - v) < bd) { bd = Math.abs(pts[j] - v); best = pts[j]; } return best; }
@@ -57,13 +61,19 @@ strip.addEventListener('mousedown', e => {
   const h = stripHit(e);
   if (nearEnd(h)) { record('영상 길이 끌기'); sDown = { type: 'dur' }; return; }
   if (h.lane !== -1) {
-    const it = itemAt(h.lane, h.x);
+    const it = itemAt(h.lane, h.x), pm = pickModeOf(e);
     if (it) {
-      selectItem(it.g, true);
-      sDown = { type: 'item', g: it.g, mode: it.mode, x: e.clientX, lane: h.lane, moved: false, orig: { start: it.g.start, end: it.g.end, off: it.g.off }, pts: snapPoints(it.g) };
+      if (pm !== 'one') { selectItem(it.g, true, pm); return; }   // Ctrl·Shift+클릭: 고르기만
+      const inGroup = isSelected(it.g) && selectedItems().length > 1;
+      selectItem(it.g, true, inGroup ? 'keep' : 'one');
+      const grp = it.mode === 'move' ? selectedItems() : [it.g];   // 길이 조절은 누른 조각만
+      sDown = { type: 'item', g: it.g, mode: it.mode, x: e.clientX, lane: h.lane, moved: false, orig: { start: it.g.start, end: it.g.end, off: it.g.off }, pts: snapPoints(grp),
+        group: grp.map(g => ({ g, start: g.start, end: g.end })), collapse: inGroup };
       return;
     }
-    if (h.lane !== 'a') selectTrack(h.lane as number);
+    if (h.lane !== 'a' && pm === 'one') selectTrack(h.lane as number);
+    sDown = { type: 'box', x0: h.x, y0: h.y, drag: false, lane: h.lane, add: pm !== 'one', base: pm !== 'one' ? selectedItems() : [], base0: pm !== 'one' ? S.selItem : null };
+    return;
   }
   sDown = { type: 'scrub', x: e.clientX, t0: now(), drag: false, lane: h.lane };
 });
@@ -73,6 +83,7 @@ window.addEventListener('mousemove', e => {
     return;
   }
   if (sDown.type === 'dur') { setDuration(Math.max(1, stripHit(e).t)); return; }
+  if (sDown.type === 'box') { boxMove(sDown, stripHit(e)); return; }
   const dpr = devicePixelRatio, px = strip.width / S.zoom, dpx = (e.clientX - sDown.x) * dpr;
   if (sDown.type === 'scrub') {
     if (Math.abs(dpx) > 4 * dpr) sDown.drag = true;
@@ -86,6 +97,13 @@ window.addEventListener('mousemove', e => {
     const len = o.end - o.start; let ns = o.start + dt;
     const s1 = snapTo(ns, d.pts, tol), s2 = snapTo(ns + len, d.pts, tol) - len;
     if (s1 !== ns && (s2 === ns || Math.abs(s1 - ns) <= Math.abs(s2 - ns))) ns = s1; else if (s2 !== ns) ns = s2;
+    if (d.group.length > 1) {   // 여러 개: 모두 같은 만큼 (맨 앞 조각이 0초 앞으로 가지 않게), 화면 사이 이동은 하나일 때만
+      const dd = Math.max(ns - o.start, -Math.min(...d.group.map(x => x.start)));
+      for (const x of d.group) { x.g.start = x.start + dd; x.g.end = x.end + dd; }
+      for (const x of d.group) sortTrack(listOf(x.g));
+      updateDurUI(); refreshItemEditor(); updateSegInfo();
+      return;
+    }
     ns = Math.max(0, ns); g.start = ns; g.end = ns + len;
     if (g.kind === 'video' && typeof h.lane === 'number' && h.lane >= 0 && h.lane !== trackOf(g)) {   // 영상 조각만 다른 화면 트랙으로 옮길 수 있음
       const from = S.tracks[trackOf(g)]; from.splice(from.indexOf(g), 1);
@@ -107,32 +125,52 @@ window.addEventListener('mouseup', e => {
   if (!sDown) return;
   const d = sDown; sDown = null;
   if (d.type === 'dur') { afterEdit(); return; }
-  if (d.type === 'item') { strip.style.cursor = 'grab'; if (d.moved) afterEdit(); return; }
+  if (d.type === 'item') { strip.style.cursor = 'grab'; if (d.moved) afterEdit(); else if (d.collapse) selectItem(d.g); return; }
+  if (d.type === 'box') {
+    TL_BOX.r = null;
+    if (!d.drag && !d.add && S.selItem) selectItem(null);   // 빈 곳 클릭 = 선택 해제
+    return;
+  }
   if (d.drag || !S.music.dur) return;
   const r = strip.getBoundingClientRect();
   const h = stripHit(e);
-  if (h.lane !== -1) { if (S.selItem) selectItem(null); return; }   // 빈 트랙 클릭 = 선택 해제
   const nb = nearestBeat(h.t);
   const pxDist = nb.d / S.zoom * r.width;
   if (nb.i >= 0 && pxDist < 7) removeBeatAt(nb.i); else addBeat(h.t, true);
 });
 strip.addEventListener('dblclick', e => {
   const h = stripHit(e); if (typeof h.lane !== 'number' || h.lane < 0 || itemAt(h.lane, h.x)) return;
-  const c = S.selClip || S.clips.find(x => x.dur > 0); if (!c) return toast('먼저 클립을 불러와 주세요');
-  addItemAt(c, h.lane, tlSnap(h.t));
+  const cs = pickedClips(); if (!cs.length) return toast('먼저 클립을 불러와 주세요');
+  addClipsAt(cs, h.lane, tlSnap(h.t));
 });
 strip.addEventListener('dragover', e => { const dt = e.dataTransfer; if (dt && [...dt.types].includes('text/clip')) { e.preventDefault(); dt.dropEffect = 'copy'; } });
 strip.addEventListener('drop', e => {
   const idx = e.dataTransfer ? e.dataTransfer.getData('text/clip') : ''; if (idx === '') return;
   e.preventDefault(); e.stopPropagation();
-  const c = S.clips[+idx], h = stripHit(e);
-  addItemAt(c, typeof h.lane === 'number' && h.lane >= 0 ? h.lane : S.track, tlSnap(h.t));
+  const cs = idx.split(',').map(i => S.clips[+i]).filter(Boolean), h = stripHit(e);   // 여러 개면 목록 순서대로 이어서
+  addClipsAt(cs, typeof h.lane === 'number' && h.lane >= 0 ? h.lane : S.track, tlSnap(h.t));
 });
 strip.addEventListener('wheel', e => {
   e.preventDefault();
   if (e.ctrlKey || e.metaKey) zoomBy(e.deltaY > 0 ? 1.15 : 1 / 1.15);
   else seek(now() + (e.deltaY + e.deltaX) / 400 * S.zoom * 0.25);
 }, { passive: false });
+/** 사각형 선택: 끈 범위의 시간과 줄에 걸친 조각을 고름 */
+function boxMove(d: Extract<StripDrag, { type: 'box' }>, h: ReturnType<typeof stripHit>) {
+  const dpr = devicePixelRatio;
+  if (!d.drag) { if (Math.hypot(h.x - d.x0, h.y - d.y0) < 4 * dpr) return; d.drag = true; }
+  const x0 = Math.min(d.x0, h.x), x1 = Math.max(d.x0, h.x), y0 = Math.min(d.y0, h.y), y1 = Math.max(d.y0, h.y);
+  TL_BOX.r = [x0, y0, x1 - x0, y1 - y0];
+  const a = viewStart(now()), spx = strip.width / S.zoom, ta = a + x0 / spx, tb = a + x1 / spx;
+  const rows: [number, number, Item[]][] = [[WAVE_H(), WAVE_H() + AUD_H(), S.audio]];
+  for (let k = 0; k < panelCount(); k++) { const top = WAVE_H() + AUD_H() + k * LANE_H(); rows.push([top, top + LANE_H(), S.tracks[k] || []]); }
+  const hits: Item[] = [];
+  for (const [ra, rb, list] of rows) if (rb > y0 && ra < y1) for (const g of list) if (g.end > ta && g.start < tb) hits.push(g);
+  const all = [...new Set([...d.base, ...hits])];
+  S.selItems = all; S.selItem = all.length ? (d.base0 && all.includes(d.base0) ? d.base0 : all[0]) : null;
+  if (S.selItem && S.selItem.kind === 'video') S.track = trackOf(S.selItem);
+  renderTrackBtns(); refreshItemEditor();
+}
 export function zoomBy(f: number) { S.zoom = Math.max(1, Math.min(Math.max(60, (S.music.dur || 0) * 1.02), S.zoom * f)); }
 
 // 미리보기 화면: 화면 클릭 = 그 화면 선택, 끌기 = 영상 위치 이동, 휠 = 확대/축소
@@ -183,7 +221,8 @@ window.addEventListener('keydown', e => {
   else if ((e.ctrlKey || e.metaKey) && (k === 'z' || k === 'y')) { e.preventDefault(); if (!R.on) (e.shiftKey || k === 'y' ? redo() : undo()); }
   else if (k === 'b') { hit(); }
   else if (k === 'r') { R.on ? stopRec() : startRec(); }
-  else if (k === 'escape') { stopRec(); }
+  else if (k === 'escape') { if (R.on) stopRec(); else if (S.selItem) selectItem(null); }
+  else if ((e.ctrlKey || e.metaKey) && k === 'a') { e.preventDefault(); selectAllInTrack(); }
   else if (k === 'c' && !e.ctrlKey && !e.metaKey) { splitAt(now()); }
   else if (k === 'a' && !e.ctrlKey && !e.metaKey) { addSelectedClip(); }
   else if (k === 'e' && !e.ctrlKey && !e.metaKey) { appendSelectedClip(); }

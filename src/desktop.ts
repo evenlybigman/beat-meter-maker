@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Juke — Beat Meter Maker
 // 데스크톱 앱(Electron)에서만 있는 기능. 웹 버전에서는 desk()가 null
+/** 자동 업데이트 상태 (main.js가 보냄) */
+export interface UpdState { phase: 'available' | 'downloading' | 'ready' | 'error'; version: string; percent?: number; transferred?: number; total?: number; error?: string }
 export interface DeskApi {
   desktop: true;
   pathOf(file: File): string;
@@ -13,7 +15,7 @@ export interface DeskApi {
   mainLog(): Promise<string[]>;
   versions: { electron: string; chrome: string; node: string; os: string };
   metrics(): Promise<{ type: string; name: string; cpu: number; workingSetKB: number; privateKB: number }[]>;
-  update?: { onReady(cb: (i: { version: string }) => void): void; install(): Promise<boolean> };
+  update?: { onChange(cb: (st: UpdState) => void): void; download(): Promise<boolean>; install(): Promise<boolean> };
   dec: {
     open(o: { id: string; path: string; ss: number; rate: number; fps: number; w: number; h: number; loop: boolean }): Promise<boolean>;
     read(id: string): Promise<Uint8Array | null>;

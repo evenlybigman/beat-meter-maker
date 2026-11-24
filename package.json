@@ -1,6 +1,6 @@
 {
   "name": "beat-meter-maker",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "비트 동기화 리듬 영상 편집기",
   "author": "Juke",
   "license": "GPL-3.0-or-later",

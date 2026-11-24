@@ -129,7 +129,7 @@ export function loadProjectData(d: ProjectFile) {
   if (d.musicVol != null) setMusicVol(d.musicVol);
   SND.list = SND.list.filter(x => !x.custom);
   for (const x of d.sounds || []) { if (SND.ready) loadSoundData(x.id, x.name, x.b64); else (SND.pending = SND.pending || []).push(x); }
-  S.track = 0; S.selItem = null; ensureTracks();
+  S.track = 0; S.selItem = null; S.selItems = []; ensureTracks();
   S.audio = sortTrack(d.audio.map(itemFromFile)) as AudioItem[];
   afterAudioChange(); renderSongList(); refreshEmpty();
   if (desk() && d.paths) relinkMedia(d).then(() => reportMissing(d));

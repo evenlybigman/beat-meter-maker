@@ -35,6 +35,7 @@
     <div style="height:14px"></div>
     <div class="drop" id="dropClips"><svg class="i" aria-hidden="true"><use href="#i-film"/></svg><div class="dt">영상 클립 추가</div><div class="hint">여러 개 선택 가능 · 끌어다 놓아도 됨</div></div>
     <ul class="clips" id="clipList"></ul>
+    <div class="clipsel" id="clipSelBar" style="display:none"><span id="clipSelTxt"></span><button id="clipSelClear">선택 해제</button><button id="clipSelDel"><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg><span>선택한 클립 삭제</span></button></div>
     <div id="trimBox" style="display:none;margin-top:10px">
       <div class="sub">클립 사용 구간 <span class="hint" id="trimName"></span></div>
       <video id="trimVid" controls muted playsinline style="width:100%;max-height:160px;background:#000;border-radius:6px;display:block"></video>
@@ -82,6 +83,7 @@
     <div class="card">
       <div class="sub">랜덤 자동 채우기</div>
       <div class="row"><label>범위</label><select id="fillScope"><option value="all">영상 전체 (기존 조각 교체)</option><option value="empty">빈 곳만 채우기</option><option value="range">구간만 (비트 만들기 바의 구간)</option></select></div>
+      <div class="row"><label>사용할 클립</label><select id="fillClips"><option value="all">모든 클립</option><option value="sel">선택한 클립만</option></select></div>
       <div class="row"><label>대상 화면</label><select id="fillTarget"><option value="cur">선택한 화면</option><option value="all">모든 화면</option></select></div>
       <div class="row"><label>클립 전환</label><input type="number" id="fillEvery" min="1" step="1" value="4"><span class="hint">비트마다</span></div>
       <div class="row"><label>최소 길이(초)</label><input type="number" id="fillMin" min="0.1" step="0.1" value="0.5"></div>
@@ -225,7 +227,7 @@
   <canvas id="strip"></canvas>
   <div class="keys hide" id="keys">
     <b>파형 클릭</b> 비트 추가/삭제 · <b>조각 끌기</b> 이동 · <b>조각 양끝 끌기</b> 길이 · <b>빈 트랙 더블클릭</b> 클립 넣기 · <b>미리보기 끌기/휠</b> 화면 안 위치·확대 ·
-    <b>Space</b> 재생 · <b>A</b> 현재 위치에 추가 · <b>Q</b> 맨 앞에 추가 · <b>E</b> 끝에 이어 붙이기 · <b>C</b> 자르기 · <b>F</b> 랜덤 채우기 · <b>D</b> 복제 · <b>O</b> 영상 90° 회전 · <b>Del</b> 삭제 · <b>R</b> 비트 녹음 · <b>B</b> 비트 찍기 · <b>Ctrl+휠</b> 확대/축소 · <b>Ctrl+Z</b> 되돌리기 · <b>Ctrl+Shift+Z</b> 다시 실행
+    <b>Space</b> 재생 · <b>A</b> 현재 위치에 추가 · <b>Q</b> 맨 앞에 추가 · <b>E</b> 끝에 이어 붙이기 · <b>C</b> 자르기 · <b>F</b> 랜덤 채우기 · <b>D</b> 복제 · <b>O</b> 영상 90° 회전 · <b>Ctrl·Shift+클릭</b> 여러 개 선택 · <b>빈 곳 끌기</b> 사각형으로 선택 · <b>Ctrl+A</b> 이 화면 조각 모두 · <b>Del</b> 삭제 · <b>R</b> 비트 녹음 · <b>B</b> 비트 찍기 · <b>Ctrl+휠</b> 확대/축소 · <b>Ctrl+Z</b> 되돌리기 · <b>Ctrl+Shift+Z</b> 다시 실행
   </div>
   </div>
 </section>
@@ -240,7 +242,7 @@
   <div class="btns" style="justify-content:flex-end"><button id="btnCancel">취소</button></div>
 </div></div>
 <div id="expDone" style="display:none"><span>내보내기 완료 · <b id="expDoneTxt"></b></span><button id="expOpen"><svg class="i" aria-hidden="true"><use href="#i-open"/></svg><span>폴더 열기</span></button><button id="expClose" class="ic" title="닫기"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button></div>
-<div id="updBar" style="display:none"><span>새 버전 <b id="updVer"></b> 준비됨</span><button id="updNow" class="pri"><svg class="i" aria-hidden="true"><use href="#i-down"/></svg><span>지금 재시작해서 설치</span></button><button id="updLater" class="ghost">나중에</button></div>
+<div id="updBar" style="display:none"><div class="ut"><span id="updMsg"></span><div class="uprog" id="updProg"><i id="updFill"></i></div></div><button id="updAct" class="pri"></button><button id="updLater" class="ghost"></button></div>
 <div id="toast"></div>
 <div id="vids"></div>
 <input type="file" id="fMusic" accept="audio/*,video/*,.mkv,.mov" multiple hidden>

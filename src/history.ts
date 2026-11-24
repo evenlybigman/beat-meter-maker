@@ -7,10 +7,10 @@
 //   record('조각 옮기기') ... afterEdit()              끌기·슬라이더처럼 계속 바뀌는 조작. 시작할 때 한 번 기록, 끝날 때 갱신
 // fn이 false를 돌려주면 아무것도 안 바뀐 것으로 보고 기록을 취소함.
 import { S } from './state';
-import type { UndoEntry } from './types';
+import type { Item, UndoEntry } from './types';
 import { afterAudioChange, renderSongList } from './songs';
 import { updateBeatInfo } from './beats';
-import { ensureTracks, refreshTimeline, sortTrack, listOf } from './timeline';
+import { ensureTracks, refreshTimeline, sortTrack, listOf, selectedItems } from './timeline';
 import { $, toast } from './util';
 
 const MAX = 100;
@@ -25,21 +25,24 @@ function snapshot(label: string): UndoEntry {
     tracks: S.tracks.map(tr => tr.map(g => ({ ...g }))),
     audio: S.audio.map(g => ({ ...g })),
     dur: [S.set.durMode, S.set.durSec],
-    sel: selPos(),
+    sel: posOf(S.selItem),
+    multi: selectedItems().length > 1 ? selectedItems().map(posOf).filter((p): p is [number, number] => !!p) : [],
   };
 }
 // 선택된 조각의 위치(트랙, 순번)를 기억했다가 되돌린 상태에서 같은 자리를 다시 선택
-function selPos(): UndoEntry['sel'] {
-  const g = S.selItem; if (!g) return null;
+function posOf(g: Item | null): [number, number] | null {
+  if (!g) return null;
   if (g.kind === 'audio') { const i = S.audio.indexOf(g); return i < 0 ? null : [-1, i]; }
   for (let k = 0; k < S.tracks.length; k++) { const i = S.tracks[k].indexOf(g); if (i >= 0) return [k, i]; }
   return null;
 }
+const atPos = (p: [number, number] | null): Item | null => { if (!p) return null; const list: Item[] | undefined = p[0] < 0 ? S.audio : S.tracks[p[0]]; return (list && list[p[1]]) || null; };
 function restore(u: UndoEntry) {
   S.beats = u.beats; S.songs = u.songs; S.tracks = u.tracks; S.audio = u.audio;
   [S.set.durMode, S.set.durSec] = u.dur;
-  const p = u.sel, list = p ? (p[0] < 0 ? S.audio : S.tracks[p[0]]) : null;
-  S.selItem = (p && list && list[p[1]]) || null;
+  const p = u.sel;
+  S.selItem = atPos(p);
+  S.selItems = (u.multi || []).map(atPos).filter((g): g is Item => !!g);
   if (p && p[0] >= 0 && S.selItem) S.track = p[0];
 }
 // 음악 쪽이 바뀌었는지 판단용 (바뀌었을 때만 재생 중인 음악을 다시 예약)
@@ -57,6 +60,7 @@ export function afterEdit(audioChanged = true) {
   for (const tr of S.tracks) sortTrack(tr);
   sortTrack(S.audio);
   if (S.selItem && !listOf(S.selItem).includes(S.selItem as never)) S.selItem = null;
+  S.selItems = S.selItems.filter(g => listOf(g).includes(g as never));   // 지워진 조각은 선택에서 뺌
   if (audioChanged) { afterAudioChange(); renderSongList(); }
   updateBeatInfo(); refreshTimeline();
 }

@@ -7,7 +7,7 @@ import { projDur } from './audio';
 import { getRange } from './beats';
 import { panelCount } from './render';
 import { S } from './state';
-import { newItem, sortTrack, useLen } from './timeline';
+import { newItem, pickedClips, sortTrack, useLen } from './timeline';
 import { $, lowerBound, toast } from './util';
 
 /* ---------- 랜덤 자동 채우기 (교차) ---------- */
@@ -32,7 +32,7 @@ export function clearRange(tr: VideoItem[], a: number, b: number) {
   return sortTrack(out);
 }
 export function randomFill() {
-  const clips = S.clips.filter(c => c.dur > 0.05);
+  const clips = ($('#fillClips').value === 'sel' ? pickedClips() : S.clips).filter(c => c.dur > 0.05);   // 선택한 클립만 쓰기
   if (!clips.length) return toast('먼저 영상 클립을 불러와 주세요');
   const dur = projDur() || clips.reduce((m, c) => m + useLen(c), 0);
   const scope = $('#fillScope').value, target = $('#fillTarget').value;
@@ -75,7 +75,7 @@ export function randomFill() {
       }
       sortTrack(tr);
     });
-    S.selItem = null;
+    S.selItem = null; S.selItems = [];
   });
   toast(`조각 ${made}개를 랜덤으로 채웠습니다 — 다시 누르면 새로 섞입니다 (Ctrl+Z 되돌리기)`, 3500);
 }

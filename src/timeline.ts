@@ -15,7 +15,23 @@ import { $, fmt, status, toast } from './util';
 /* ---------- 클립 사용 구간 (소스 탭) ---------- */
 export const useEnd = (c: Clip) => (c.outPt > c.inPt ? Math.min(c.outPt, c.dur) : c.dur);
 export const useLen = (c: Clip) => Math.max(0.1, useEnd(c) - c.inPt);
-export function selectClip(c: Clip | null) {
+/** 선택 방법: one = 이것만, toggle = Ctrl+클릭(넣고 빼기), range = Shift+클릭(기준부터 여기까지), keep = 여러 개 선택을 유지한 채 기준만 바꿈 */
+export type PickMode = 'one' | 'toggle' | 'range' | 'keep';
+export const pickModeOf = (e: MouseEvent): PickMode => (e.ctrlKey || e.metaKey ? 'toggle' : e.shiftKey ? 'range' : 'one');
+/** 클립 선택. 여러 개 고를 수 있고, S.selClip은 그중 기준(사용 구간 편집에 보이는 것) */
+export function selectClip(c: Clip | null, mode: PickMode = 'one') {
+  if (c && mode === 'toggle') {
+    const cur = S.selClips.includes(S.selClip!) ? S.selClips : S.selClip ? [S.selClip] : [];
+    if (cur.includes(c)) {
+      if (cur.length === 1) return;   // 마지막 하나는 빼지 않음
+      S.selClips = cur.filter(x => x !== c);
+      c = S.selClip === c ? S.selClips[S.selClips.length - 1] : S.selClip;
+    } else S.selClips = [...cur, c];
+  } else if (c && mode === 'range' && S.selClip && S.clips.includes(S.selClip)) {
+    const a = S.clips.indexOf(S.selClip), b = S.clips.indexOf(c);
+    S.selClips = S.clips.slice(Math.min(a, b), Math.max(a, b) + 1);
+    c = S.selClip;   // 기준은 그대로
+  } else S.selClips = c ? [c] : [];
   S.selClip = c;
   const box = $('#trimBox');
   if (!c) { box.style.display = 'none'; renderClipList(); return; }
@@ -33,6 +49,14 @@ export function setTrim(which: 'in' | 'out', val: string | number) {
   else { c.outPt = Math.max(val, c.inPt + 0.2); if (c.outPt >= c.dur - 0.01) c.outPt = 0; }
   $('#trimIn').value = c.inPt.toFixed(2); $('#trimOut').value = useEnd(c).toFixed(2);
   renderClipList();
+}
+
+/** 타임라인에 넣을 클립들: 고른 클립(목록 순서대로). 없으면 불러온 첫 클립 */
+export function pickedClips(): Clip[] {
+  const set = S.selClip && S.selClips.includes(S.selClip) ? S.selClips : S.selClip ? [S.selClip] : [];
+  const ok = S.clips.filter(c => set.includes(c) && c.dur > 0);
+  if (ok.length) return ok;
+  const c = S.clips.find(x => x.dur > 0); return c ? [c] : [];
 }
 
 /* ---------- 타임라인: 화면마다 트랙 1개, 트랙 안에 영상 조각을 자유롭게 배치 ---------- */
@@ -56,8 +80,26 @@ export function viewStart(t: number) {
 }
 export function setStripHeight() { strip.style.height = (64 + 26 + 32 * panelCount() + 2) + 'px'; resizeStrip(); }
 
-export function selectItem(g: Item | null, toTab?: boolean) {
-  S.selItem = g || null;
+/** 선택한 조각들 (여러 개 선택이 아니면 기준 조각 하나, 선택 없으면 빈 목록) */
+export const selectedItems = (): Item[] => (S.selItem ? (S.selItems.length > 1 && S.selItems.includes(S.selItem) ? S.selItems : [S.selItem]) : []);
+export const isSelected = (g: Item) => selectedItems().includes(g);
+/** 조각 선택. mode는 selectClip과 같음 (range: 같은 줄이면 기준~여기 사이 조각 모두) */
+export function selectItem(g: Item | null, toTab?: boolean, mode: PickMode = 'one') {
+  const cur = selectedItems();
+  if (!g) { S.selItem = null; S.selItems = []; }
+  else if (mode === 'toggle') {
+    if (cur.includes(g)) { S.selItems = cur.filter(x => x !== g); S.selItem = S.selItem === g ? S.selItems[S.selItems.length - 1] || null : S.selItem; }
+    else { S.selItems = [...cur, g]; S.selItem = g; }
+  } else if (mode === 'range' && S.selItem) {
+    const anchor = S.selItem;
+    if (listOf(anchor) === listOf(g)) {
+      const a = Math.min(anchor.start, g.start) - 1e-9, b = Math.max(anchor.start, g.start) + 1e-9;
+      S.selItems = [...new Set([...cur, ...listOf(g).filter(x => x.start >= a && x.start <= b)])];
+    } else S.selItems = cur.includes(g) ? cur : [...cur, g];
+    S.selItem = anchor;
+  } else if (mode === 'keep' && cur.includes(g)) { S.selItem = g; }
+  else { S.selItem = g; S.selItems = []; }
+  g = S.selItem;
   if (g) { const k = trackOf(g); if (k >= 0) S.track = k; }
   if (g && toTab) document.querySelector<HTMLElement>('.tabs button[data-tab="tCut"]')?.click();
   renderTrackBtns(); refreshItemEditor();
@@ -99,7 +141,8 @@ export function refreshItemEditor() {
   for (const t of Object.values(ITEM_TYPES)) $(t.editor).style.display = t.editor === shown ? 'block' : 'none';
   if (sel && sel.kind === 'audio') {
     const g = sel;
-    $('#audInfo').textContent = `${g.src ? g.src.name : g.srcName} · ${fmt(g.start)} ~ ${fmt(g.end)}${g.src ? ' · ' + g.src.bpm + ' BPM' : ''}`;
+    const many = selectedItems().filter(x => x.kind === 'audio').length;
+    $('#audInfo').textContent = (many > 1 ? `음악 조각 ${many}개 선택 · 기준: ` : '') + `${g.src ? g.src.name : g.srcName} · ${fmt(g.start)} ~ ${fmt(g.end)}${g.src ? ' · ' + g.src.bpm + ' BPM' : ''}`;
     $('#audOff').value = g.off.toFixed(2); $('#audStart').value = g.start.toFixed(3); $('#audLen').value = (g.end - g.start).toFixed(3);
     const v = Math.round((g.vol == null ? 1 : g.vol) * 100); $('#audVol').value = v; $('#vAudVol').textContent = v + '%';
     return;
@@ -109,7 +152,8 @@ export function refreshItemEditor() {
   document.querySelectorAll<HTMLInputElement>('#segEdit select,#segEdit input,#segEdit button').forEach(el => el.disabled = !g);
   if (!g) { $('#segSelInfo').textContent = '선택 없음 — 타임라인의 조각을 클릭하세요'; return; }
   const k = trackOf(g);
-  $('#segSelInfo').textContent = `${panelCount() > 1 ? `화면 ${k + 1} · ` : ''}${fmt(g.start)} ~ ${fmt(g.end)} (${(g.end - g.start).toFixed(2)}초)`;
+  const many = selectedItems().filter(x => x.kind === 'video').length;
+  $('#segSelInfo').textContent = (many > 1 ? `조각 ${many}개 선택 — 아래 설정은 모두에 적용 · 기준: ` : '') + `${panelCount() > 1 ? `화면 ${k + 1} · ` : ''}${fmt(g.start)} ~ ${fmt(g.end)} (${(g.end - g.start).toFixed(2)}초)`;
   $('#segClip').value = g.src ? String(S.clips.indexOf(g.src)) : '';
   $('#segOff').value = g.off.toFixed(2);
   $('#segStart').value = g.start.toFixed(3);
@@ -125,48 +169,63 @@ export function refreshItemEditor() {
 // 선택한 조각의 속성 변경. undo=false면 슬라이더처럼 계속 바뀌는 조작 (기록은 누를 때 record로 한 번)
 export function itemOp(fn: (g: Item) => void, undo = true, label = '조각 편집') {
   const g = S.selItem; if (!g) return toast('먼저 타임라인에서 조각을 선택하세요');
-  const run = () => { fn(g); ITEM_TYPES[g.kind].clamp(g); };
+  const gs = selectedItems().filter(x => x.kind === g.kind);   // 여러 개 선택했으면 같은 종류 조각 모두에
+  const run = () => { for (const x of gs) { fn(x); ITEM_TYPES[x.kind].clamp(x); } };
   if (undo) commit(label, run);
   else { run(); refreshItemEditor(); updateSegInfo(); }
 }
-export function addItemAt(c: Clip, k: number, t: number) {
-  if (!c || !c.dur) return toast('클립을 먼저 불러와 주세요');
+/** 클립 하나를 k번 화면의 t에 넣기 */
+export function addItemAt(c: Clip, k: number, t: number) { addClipsAt([c], k, t); }
+/** 클립 여러 개를 t부터 차례로 이어서 넣기 (영상 끝을 넘는 클립은 넣지 않음). 한 번에 되돌릴 수 있음 */
+export function addClipsAt(cs: Clip[], k: number, t: number) {
+  cs = cs.filter(c => c && c.dur > 0);
+  if (!cs.length) return toast('클립을 먼저 불러와 주세요');
   if (!S.tracks[k]) return;
   t = Math.max(0, t);
-  let len = useLen(c);
-  const L = limitDur(); if (t + len > L) len = Math.max(0.2, L - t);
-  const g = newItem(c, t, len);
-  commit('조각 추가', () => { S.tracks[k].push(g); S.selItem = g; S.track = k; });
-  status(`${c.name}을(를) ${fmt(t)}에 추가했습니다 — 끌어서 옮기고, 양끝을 끌어서 길이를 조절하세요`);
+  const L = limitDur(), add: VideoItem[] = [];
+  let at = t;
+  for (const c of cs) {
+    if (add.length && at >= L - 0.1) break;
+    let len = useLen(c); if (at + len > L) len = Math.max(0.2, L - at);
+    add.push(newItem(c, at, len)); at += len;
+  }
+  commit(add.length > 1 ? `조각 ${add.length}개 추가` : '조각 추가', () => { S.tracks[k].push(...add); S.selItem = add[0]; S.selItems = add.length > 1 ? add : []; S.track = k; });
+  const skip = cs.length - add.length;
+  if (add.length > 1) status(`클립 ${add.length}개를 ${fmt(t)}부터 이어서 넣었습니다${skip ? ` (영상 끝을 넘어 ${skip}개는 넣지 않음)` : ''}`);
+  else status(`${add[0].srcName}을(를) ${fmt(t)}에 추가했습니다 — 끌어서 옮기고, 양끝을 끌어서 길이를 조절하세요`);
+  if (skip) toast(`영상 끝을 넘어서 클립 ${skip}개는 넣지 않았습니다`);
 }
 export function addSelectedClip() {
-  const c = S.selClip || S.clips.find(x => x.dur > 0);
-  if (!c) return toast('먼저 영상 클립을 불러와 주세요');
-  addItemAt(c, S.track, tlSnap(now()));
+  const cs = pickedClips();
+  if (!cs.length) return toast('먼저 영상 클립을 불러와 주세요');
+  addClipsAt(cs, S.track, tlSnap(now()));
 }
 // 선택한 화면의 마지막 조각 바로 뒤에 이어 붙이기
 export function appendSelectedClip() {
-  const c = S.selClip || S.clips.find(x => x.dur > 0);
-  if (!c) return toast('먼저 영상 클립을 불러와 주세요');
+  const cs = pickedClips();
+  if (!cs.length) return toast('먼저 영상 클립을 불러와 주세요');
   const tr = S.tracks[S.track] || [];
   const end = tr.length ? Math.max(...tr.map(g => g.end)) : 0;
   if (end >= limitDur() - 0.1) return toast(`화면 ${S.track + 1}은 이미 영상 끝까지 채워져 있습니다`);
-  addItemAt(c, S.track, end);
+  addClipsAt(cs, S.track, end);
   if (!S.playing) seek(end + 0.001);
 }
-// 선택한 화면 맨 앞에 넣고, 기존 조각은 그만큼 뒤로 밀기
+// 선택한 화면 맨 앞에 넣고(여러 개면 순서대로), 기존 조각은 그만큼 뒤로 밀기
 export function prependSelectedClip() {
-  const c = S.selClip || S.clips.find(x => x.dur > 0);
-  if (!c || !c.dur) return toast('먼저 영상 클립을 불러와 주세요');
+  const cs = pickedClips();
+  if (!cs.length) return toast('먼저 영상 클립을 불러와 주세요');
   const tr = S.tracks[S.track]; if (!tr) return;
-  const len = Math.min(useLen(c), limitDur());
-  commit('맨 앞에 추가', () => {
+  const L = limitDur(), add: VideoItem[] = [];
+  let at = 0;
+  for (const c of cs) { if (add.length && at >= L - 0.1) break; const len = Math.min(useLen(c), L - at); add.push(newItem(c, at, len)); at += len; }
+  const len = at;
+  commit(add.length > 1 ? `맨 앞에 ${add.length}개 추가` : '맨 앞에 추가', () => {
     for (const g of tr) { g.start += len; g.end += len; }
-    const g = newItem(c, 0, len); tr.push(g); S.selItem = g;
+    tr.push(...add); S.selItem = add[0]; S.selItems = add.length > 1 ? add : [];
   });
-  const L = limitDur(), over = isFinite(L) ? tr.filter(x => x.start >= L).length : 0;
+  const over = isFinite(L) ? tr.filter(x => x.start >= L).length : 0;
   if (!S.playing) seek(0);
-  toast(`화면 ${S.track + 1} 맨 앞에 추가하고 나머지를 ${len.toFixed(1)}초 뒤로 밀었습니다` + (over ? ` (영상 끝을 넘어간 조각 ${over}개는 보이지 않습니다)` : ''), 3500);
+  toast(`화면 ${S.track + 1} 맨 앞에 ${add.length > 1 ? `클립 ${add.length}개를 ` : ''}추가하고 나머지를 ${len.toFixed(1)}초 뒤로 밀었습니다` + (over ? ` (영상 끝을 넘어간 조각 ${over}개는 보이지 않습니다)` : ''), 3500);
 }
 export function tlSnap(t: number) {
   if (!$('#tlSnap').checked || !S.beats.length) return t;
@@ -193,19 +252,31 @@ export function splitAt(t: number) {
 export function rotateSel() {
   const g = S.selItem; if (!g || g.kind !== 'video') return toast('먼저 타임라인에서 영상 조각을 선택하세요');
   itemOp(x => { x.rot = normRot((x.rot || 0) + 90); }, true, '회전');
-  toast(`회전 ${g.rot}°`);
+  const n = selectedItems().filter(x => x.kind === 'video').length;
+  toast(n > 1 ? `조각 ${n}개를 90° 돌렸습니다` : `회전 ${g.rot}°`);
 }
+/** 복제: 선택한 조각(들)을 묶음째로 바로 뒤에 복사 (서로 간격은 그대로) */
 export function dupItem() {
-  const g = S.selItem; if (!g) return toast('먼저 타임라인에서 조각을 선택하세요');
-  commit(`${ITEM_TYPES[g.kind].label} 복제`, () => {
-    const len = g.end - g.start, ng = { ...g, start: g.end, end: g.end + len } as Item;
-    listOf(g).push(ng); S.selItem = ng;
+  const gs = selectedItems(); if (!gs.length) return toast('먼저 타임라인에서 조각을 선택하세요');
+  const span = Math.max(...gs.map(g => g.end)) - Math.min(...gs.map(g => g.start));
+  commit(gs.length > 1 ? `조각 ${gs.length}개 복제` : `${ITEM_TYPES[gs[0].kind].label} 복제`, () => {
+    const out = gs.map(g => { const ng = { ...g, start: g.start + span, end: g.end + span } as Item; listOf(g).push(ng); return ng; });
+    S.selItem = out[Math.max(0, gs.indexOf(S.selItem!))]; S.selItems = out.length > 1 ? out : [];
   });
 }
 export function delItem() {
-  const g = S.selItem; if (!g) return false;
-  commit(`${ITEM_TYPES[g.kind].label} 삭제`, () => { const list = listOf(g); list.splice(list.indexOf(g), 1); S.selItem = null; });
+  const gs = selectedItems(); if (!gs.length) return false;
+  commit(gs.length > 1 ? `조각 ${gs.length}개 삭제` : `${ITEM_TYPES[gs[0].kind].label} 삭제`, () => {
+    for (const g of gs) { const list = listOf(g); list.splice(list.indexOf(g), 1); }
+    S.selItem = null; S.selItems = [];
+  });
   return true;
+}
+/** 지금 화면 트랙의 조각 모두 선택 (Ctrl+A) */
+export function selectAllInTrack() {
+  const tr = S.tracks[S.track] || []; if (!tr.length) return toast('이 화면에는 조각이 없습니다');
+  S.selItem = tr[0]; S.selItems = tr.slice();
+  refreshItemEditor(); toast(`화면 ${S.track + 1}의 조각 ${tr.length}개를 선택했습니다`);
 }
 export function copyTrack() {
   if (S.track === 0) return;

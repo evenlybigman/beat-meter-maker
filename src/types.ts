@@ -71,7 +71,7 @@ export type Item = VideoItem | AudioItem;
 export interface SoundEntry { id: string; name: string; buf?: AudioBuffer; b64?: string; custom?: boolean }
 
 /** 되돌리기 한 칸: 그 시점의 비트·조각·영상 길이 + 무슨 작업이었는지 */
-export interface UndoEntry { label: string; beats: number[]; songs: Song[]; tracks: VideoItem[][]; audio: AudioItem[]; dur: [Settings['durMode'], number]; sel: [number, number] | null /* 선택 위치 [트랙(-1=음악), 순번] */ }
+export interface UndoEntry { label: string; beats: number[]; songs: Song[]; tracks: VideoItem[][]; audio: AudioItem[]; dur: [Settings['durMode'], number]; sel: [number, number] | null /* 선택 위치 [트랙(-1=음악), 순번] */; multi: [number, number][] /* 여러 개 선택한 조각들의 위치 */ }
 
 /** 프로젝트 파일에 저장되는 조각 (v4) */
 export interface ItemFile { kind: ItemKind; start: number; end: number | null; src: string; off: number; rate: number; vol: number; x: number; y: number; zoom: number; flip: boolean; rot?: number; tilt?: number }

@@ -152,26 +152,53 @@ test('25. 정보 창 링크는 앱 안에서 열지 않고 기본 브라우저�
   expect(a.page.url()).toBe('app://local/index.html');    // 앱 화면도 그대로
 });
 
-test('28. 자동 업데이트: 새 버전을 받으면 바가 뜨고, 나중에는 닫기만, 지금 재시작은 설치 요청', async ({ desk }) => {
+test('28. 자동 업데이트: 먼저 묻고 → 다운로드 누르면 진행률 → 준비됨 → 재시작 설치 / 나중에·숨기기 / 내보내는 중엔 막음', async ({ desk }) => {
   const a = await desk.launch({ BMM_FAKE_UPDATE: '9.9.9' });
-  const bar = a.page.locator('#updBar');
+  const bar = a.page.locator('#updBar'), msg = a.page.locator('#updMsg'), act = a.page.locator('#updAct'), later = a.page.locator('#updLater');
+  const installs = () => a.app.evaluate(() => globalThis.__updInstall || 0);
+
+  // 1) 받기 전에 먼저 물어봄
   await expect(bar).toBeVisible({ timeout: 10_000 });
-  await expect(a.page.locator('#updVer')).toHaveText('v9.9.9');
-  await a.page.click('#updLater');
+  await expect(msg).toContainText('새 버전 v9.9.9');
+  await expect(act).toContainText('다운로드');
+  await expect(a.page.locator('#updProg')).toBeHidden();
+
+  // 2) 다운로드 → 진행률 (막대·%·MB), 받는 중엔 숨길 수 있고 다 받으면 다시 뜸
+  await act.click();
+  await expect(a.page.locator('#updProg')).toBeVisible();
+  await expect(msg).toContainText('받는 중');
+  await expect(msg).toContainText('MB');
+  await expect(act).toBeHidden();
+  await later.click();                                  // 숨기기 (계속 받음)
   await expect(bar).toBeHidden();
-  expect(await a.app.evaluate(() => globalThis.__updInstall || 0)).toBe(0);   // 나중에 → 설치 요청 없음
+  await expect.poll(() => a.E(`parseFloat(document.getElementById('updFill').style.width) || 0`)).toBeGreaterThan(0);
 
-  // 다시 띄워서 지금 재시작 → 설치 요청 1번 (테스트에선 실제로 재시작하지 않음)
-  await a.E(`document.querySelector('#updBar').style.display = 'flex'`);
-  await a.page.click('#updNow');
-  await expect.poll(() => a.app.evaluate(() => globalThis.__updInstall || 0)).toBe(1);
-
-  // 내보내는 중에는 재시작하지 않음
+  // 3) 다 받으면 다시 뜸 → 내보내는 중엔 재시작 안 함 → 지금 재시작
+  await expect(bar).toBeVisible({ timeout: 5_000 });
+  await expect(msg).toContainText('v9.9.9 준비됨');
+  await expect(act).toContainText('지금 재시작해서 설치');
   await a.E('S.exporting = true');
-  await a.page.click('#updNow');
+  await act.click();
   await expect(a.page.locator('#toast')).toContainText('내보내기가 끝난 뒤');
-  expect(await a.app.evaluate(() => globalThis.__updInstall)).toBe(1);
+  expect(await installs()).toBe(0);
   await a.E('S.exporting = false');
+  await later.click();                                  // 나중에 → 닫기만
+  await expect(bar).toBeHidden();
+  expect(await installs()).toBe(0);
+  await a.E(`document.querySelector('#updBar').style.display = 'flex'`);
+  await act.click();
+  await expect.poll(installs).toBe(1);
+});
+
+test('28c. 자동 업데이트: 받다가 실패하면 알리고, 다시 시도하면 이어서 받음', async ({ desk }) => {
+  const a = await desk.launch({ BMM_FAKE_UPDATE: '9.9.9', BMM_FAKE_UPDATE_FAIL: '1' });
+  const msg = a.page.locator('#updMsg'), act = a.page.locator('#updAct');
+  await expect(act).toContainText('다운로드', { timeout: 10_000 });
+  await act.click();
+  await expect(msg).toContainText('업데이트를 받지 못했습니다', { timeout: 5_000 });
+  await expect(act).toHaveText('다시 시도');
+  await act.click();
+  await expect(msg).toContainText('준비됨', { timeout: 5_000 });
 });
 
 test('28b. 업데이트 흉내가 없으면 바는 뜨지 않음 (테스트·개발 실행에선 확인 안 함)', async ({ desk }) => {

@@ -264,17 +264,21 @@ export function drawStrip(t: number) {
   if ($('#grabBox').style.display !== 'none') { const gs = +$('#grabStart').value || 0, gl = (+$('#grabLen').value) / 1000; sx.fillStyle = 'rgba(62,207,142,.35)'; sx.fillRect((gs - a) * px, 0, Math.max(2, gl * px), WH); sx.fillStyle = '#3ecf8e'; sx.fillRect((gs - a) * px, 0, 2 * dpr, WH); }
   if (S.musicStart > a) { sx.fillStyle = 'rgba(0,0,0,.45)'; sx.fillRect(0, 0, (S.musicStart - a) * px, WH); }
   if (m.dur && m.dur < a + span) { sx.fillStyle = 'rgba(0,0,0,.55)'; sx.fillRect((m.dur - a) * px, 0, W, H); }
+  // 선택 표시: 기준 조각은 흰 테두리, 같이 고른 조각은 강조색 테두리
+  const multi = S.selItems.length > 1 && !!S.selItem && S.selItems.includes(S.selItem);
+  const selOf = (g: object) => (g === S.selItem ? 2 : multi && S.selItems.includes(g as never) ? 1 : 0);
+  const outline = (x: number, y: number, w: number, h: number, s: number) => { sx.strokeStyle = s === 2 ? '#fff' : TH.acc; sx.lineWidth = 2 * dpr; sx.strokeRect(x, y, w, h); };
   // 음악 트랙
   sx.textBaseline = 'middle';
   sx.fillStyle = '#0a0b0f'; sx.fillRect(0, WH, W, AH); sx.fillStyle = '#24272f'; sx.fillRect(0, WH, W, 1);
   for (const g of S.audio) {
     const xa = (g.start - a) * px, xb = ((g.end == null ? g.start : g.end) - a) * px;
     if (xb < 0 || xa > W) continue;
-    const sel = g === S.selItem;
+    const sel = selOf(g);
     sx.fillStyle = g.src ? `hsl(${g.src.hue},36%,${sel ? 40 : 24}%)` : TH.missing;
     sx.fillRect(xa + 1, WH + 3, Math.max(2, xb - xa - 2), AH - 6);
     if (xb - xa > 14) { sx.fillStyle = 'rgba(255,255,255,.3)'; sx.fillRect(xa + 1, WH + 3, 3 * dpr, AH - 6); sx.fillRect(xb - 1 - 3 * dpr, WH + 3, 3 * dpr, AH - 6); }
-    if (sel) { sx.strokeStyle = '#fff'; sx.lineWidth = 2 * dpr; sx.strokeRect(xa + 1, WH + 3, Math.max(2, xb - xa - 2), AH - 6); }
+    if (sel) outline(xa + 1, WH + 3, Math.max(2, xb - xa - 2), AH - 6, sel);
     if (xb - xa > 50) { sx.save(); sx.beginPath(); sx.rect(xa + 6 * dpr, WH, xb - xa - 12 * dpr, AH); sx.clip(); sx.fillStyle = '#fff'; sx.font = `600 ${Math.round(10.5 * dpr)}px ${FONT}`; sx.fillText(`${g.src ? g.src.name : g.srcName + ' (없음)'}${g.vol != null && g.vol !== 1 ? ' · ' + Math.round(g.vol * 100) + '%' : ''}`, Math.max(xa, 0) + 8 * dpr, WH + AH / 2); sx.restore(); }
   }
   // 화면별 트랙
@@ -285,11 +289,11 @@ export function drawStrip(t: number) {
     for (const g of tr) {
       const xa = (g.start - a) * px, xb = (g.end - a) * px;
       if (xb < 0 || xa > W) continue;
-      const sel = g === S.selItem;
+      const sel = selOf(g);
       sx.fillStyle = g.src ? `hsl(${g.src.hue},40%,${sel ? 48 : 32}%)` : TH.missing;
       sx.fillRect(xa + 1, y0 + 3, Math.max(2, xb - xa - 2), LH - 6);
       if (xb - xa > 14) { sx.fillStyle = 'rgba(255,255,255,.35)'; sx.fillRect(xa + 1, y0 + 3, 3 * dpr, LH - 6); sx.fillRect(xb - 1 - 3 * dpr, y0 + 3, 3 * dpr, LH - 6); }
-      if (sel) { sx.strokeStyle = '#fff'; sx.lineWidth = 2 * dpr; sx.strokeRect(xa + 1, y0 + 3, Math.max(2, xb - xa - 2), LH - 6); }
+      if (sel) outline(xa + 1, y0 + 3, Math.max(2, xb - xa - 2), LH - 6, sel);
       if (xb - xa > 50) {
         sx.save(); sx.beginPath(); sx.rect(xa + 6 * dpr, y0, xb - xa - 12 * dpr, LH); sx.clip();
         sx.fillStyle = '#fff'; sx.font = `600 ${Math.round(11 * dpr)}px ${FONT}`;
@@ -306,5 +310,8 @@ export function drawStrip(t: number) {
   const pd = projDur();
   if (pd > 0 && pd >= a && pd <= a + span) { const ex = (pd - a) * px; sx.fillStyle = S.set.durMode === 'manual' ? TH.acc : '#8b91a1'; sx.fillRect(ex - 1, 0, 3 * dpr, H); sx.font = `700 ${Math.round(10 * dpr)}px ${FONT}`; sx.textBaseline = 'top'; sx.fillText('끝', ex - 16 * dpr, 2 * dpr); }
   sx.fillStyle = '#f1f3f6'; sx.fillRect((t - a) * px - 1, 0, 2 * dpr, H);
+  if (TL_BOX.r) { const [bx, by, bw, bh] = TL_BOX.r; sx.fillStyle = `rgba(${TH.accRgb},.12)`; sx.fillRect(bx, by, bw, bh); sx.strokeStyle = TH.acc; sx.lineWidth = 1 * dpr; sx.strokeRect(bx + .5, by + .5, bw, bh); }
 }
+/** 타임라인에서 끌고 있는 선택 사각형 [x, y, w, h] (캔버스 픽셀) */
+export const TL_BOX: { r: number[] | null } = { r: null };
 export function resizeStrip() { const r = strip.getBoundingClientRect(); strip.width = Math.max(100, Math.round(r.width * devicePixelRatio)); strip.height = Math.round(r.height * devicePixelRatio); }

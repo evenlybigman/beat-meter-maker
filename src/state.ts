@@ -21,6 +21,8 @@ export interface AppState {
   playing: boolean; exporting: boolean; undo: UndoEntry[];
   zoom: number; latency: number; snap: boolean; musicStart: number; musicVol: number;
   selItem: VideoItem | AudioItem | null; selClip: Clip | null;
+  /** 여러 개 선택 (Ctrl·Shift 클릭, 드래그). selItem·selClip은 그중 기준이 되는 하나 (편집 패널에 보이는 것) */
+  selItems: (VideoItem | AudioItem)[]; selClips: Clip[];
   pendingTrims: Record<string, { inPt?: number; outPt?: number }>;
   /** 화면마다 트랙 1개 */
   tracks: VideoItem[][]; track: number;
@@ -36,7 +38,7 @@ export const S: AppState = {
   beats: [], bpm: 120, offset: 0,
   playing: false, exporting: false, undo: [],
   zoom: 8, latency: 0, snap: true, musicStart: 0, musicVol: 1,
-  selItem: null, selClip: null, pendingTrims: {}, tracks: [[]], track: 0,
+  selItem: null, selClip: null, selItems: [], selClips: [], pendingTrims: {}, tracks: [[]], track: 0,
   segments: undefined as never,   // 아래 getter로 대체
   set: { ...DEFAULTS }
 };

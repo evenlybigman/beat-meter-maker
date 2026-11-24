@@ -95,28 +95,62 @@ ipcMain.handle('diag:metrics', () => app.getAppMetrics().map(m => ({ type: m.typ
 ipcMain.handle('shell:show', (_e, p) => shell.showItemInFolder(p));
 
 /* ---------- 자동 업데이트 (GitHub 릴리스) ----------
- * 설치본에서만: 켤 때 새 버전 확인 → 백그라운드로 받음 → 화면에 "재시작해서 설치" 바
- * 나중에를 누르면 앱을 끌 때 설치됨. macOS는 코드 서명이 없으면 동작하지 않아 끔
- * 테스트: BMM_FAKE_UPDATE=<버전> 이면 실제로 확인하지 않고 "받음" 상태만 흉내 */
-let updater = null, updReady = null;
+ * 설치본에서만. 켤 때 새 버전 확인 → "새 버전이 있습니다 [다운로드] [나중에]"
+ * → 다운로드를 누르면 받으면서 진행률 표시 → 다 받으면 "[지금 재시작해서 설치] [나중에]"
+ * 받은 뒤 나중에를 누르면 앱을 끌 때 설치됨. macOS는 코드 서명이 없으면 동작하지 않아 끔
+ * 상태는 하나(upd)로 관리하고 바뀔 때마다 화면에 통째로 보냄: phase = available | downloading | ready | error
+ * 테스트: BMM_FAKE_UPDATE=<버전> 이면 실제로 확인하지 않고 흉내 (BMM_FAKE_UPDATE_FAIL=1: 첫 다운로드는 실패) */
+let updater = null, upd = null, updWin = null;
 const FAKE_UPD = process.env.BMM_FAKE_UPDATE || '';
+let fakeFail = process.env.BMM_FAKE_UPDATE_FAIL === '1';
+function setUpd(patch) {
+  upd = { ...(upd || {}), ...patch };
+  if (updWin && !updWin.isDestroyed()) updWin.webContents.send('upd:changed', upd);
+}
 function setupUpdates(win) {
-  const notify = info => { updReady = { version: info.version }; if (!win.isDestroyed()) win.webContents.send('upd:ready', updReady); };
-  if (FAKE_UPD) { win.webContents.once('did-finish-load', () => setTimeout(() => notify({ version: FAKE_UPD }), 300)); return; }
+  updWin = win;
+  if (FAKE_UPD) { win.webContents.once('did-finish-load', () => setTimeout(() => setUpd({ phase: 'available', version: FAKE_UPD }), 300)); return; }
   if (TEST || !app.isPackaged || process.platform === 'darwin' || process.env.BMM_NO_UPDATE === '1') return;
   try { updater = require('electron-updater').autoUpdater; } catch (e) { mlog('[update] 불러오기 실패 ' + e.message); return; }
   updater.logger = { info: m => mlog('[update] ' + m), warn: m => mlog('[update] ' + m), error: m => mlog('[update] 오류 ' + m), debug() {} };
-  updater.autoDownload = true;
-  updater.autoInstallOnAppQuit = true;
-  updater.on('update-downloaded', notify);
-  updater.on('error', e => mlog('[update] 오류 ' + (e && e.message || e)));   // 인터넷이 없어도 조용히 넘어감
+  updater.autoDownload = false;            // 받기 전에 먼저 물어봄
+  updater.autoInstallOnAppQuit = true;     // 받은 뒤 '나중에'면 끌 때 설치
+  updater.on('update-available', i => setUpd({ phase: 'available', version: i.version }));
+  let last = 0;
+  updater.on('download-progress', p => {
+    const t = Date.now(); if (t - last < 150 && p.percent < 100) return; last = t;   // 너무 자주 보내지 않게
+    setUpd({ phase: 'downloading', percent: p.percent, transferred: p.transferred, total: p.total });
+  });
+  updater.on('update-downloaded', i => setUpd({ phase: 'ready', version: i.version, percent: 100 }));
+  updater.on('error', e => {
+    const msg = String(e && e.message || e).split('\n')[0].slice(0, 200);
+    mlog('[update] 오류 ' + msg);
+    if (upd && upd.phase === 'downloading') setUpd({ phase: 'error', error: msg });   // 확인 단계의 오류(인터넷 없음 등)는 조용히 넘어감
+  });
   updater.checkForUpdates().catch(e => mlog('[update] 확인 실패 ' + (e && e.message || e)));
 }
-ipcMain.handle('upd:state', () => updReady);
+ipcMain.handle('upd:state', () => upd);
+ipcMain.handle('upd:download', () => {
+  if (!upd || !['available', 'error'].includes(upd.phase)) return false;
+  setUpd({ phase: 'downloading', percent: 0, transferred: 0, total: 0, error: '' });
+  mlog(`[update] ${upd.version} 다운로드 시작`);
+  if (FAKE_UPD) {   // 테스트: 0→100%를 1.5초쯤에 걸쳐 흉내
+    const total = 80 * 1024 * 1024; let pct = 0;
+    const tick = setInterval(() => {
+      pct += 10;
+      if (fakeFail && pct >= 40) { clearInterval(tick); fakeFail = false; setUpd({ phase: 'error', error: '네트워크 연결이 끊겼습니다 (테스트)' }); return; }
+      if (pct >= 100) { clearInterval(tick); setUpd({ phase: 'ready', percent: 100 }); return; }
+      setUpd({ phase: 'downloading', percent: pct, transferred: total * pct / 100, total });
+    }, 150);
+    return true;
+  }
+  updater.downloadUpdate().catch(() => {});   // 실패는 'error' 이벤트에서 처리
+  return true;
+});
 ipcMain.handle('upd:install', () => {
+  if (!upd || upd.phase !== 'ready') return false;
   if (FAKE_UPD) { globalThis.__updInstall = (globalThis.__updInstall || 0) + 1; return true; }
-  if (!updater || !updReady) return false;
-  mlog(`[update] ${updReady.version} 설치하며 재시작`);
+  mlog(`[update] ${upd.version} 설치하며 재시작`);
   setImmediate(() => updater.quitAndInstall(false, true));
   return true;
 });
