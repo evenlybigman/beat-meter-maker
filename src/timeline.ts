@@ -6,6 +6,8 @@ import { limitDur, now, seek, updateDurUI } from './audio';
 import { nearestBeat } from './beats';
 import { commit } from './history';
 import { ITEM_TYPES, makeItem, normRot } from './itemTypes';
+import { clipRate, rateOf } from './clipFx';
+import { renderClipFx } from './clipFxUi';
 import { renderClipList } from './clips';
 import { strip } from './dom';
 import { LAYOUTS, panelCount, resizeStrip } from './render';
@@ -15,6 +17,8 @@ import { $, fmt, status, toast } from './util';
 /* ---------- 클립 사용 구간 (소스 탭) ---------- */
 export const useEnd = (c: Clip) => (c.outPt > c.inPt ? Math.min(c.outPt, c.dur) : c.dur);
 export const useLen = (c: Clip) => Math.max(0.1, useEnd(c) - c.inPt);
+/** 타임라인에 넣을 때의 길이 (클립 기본 속도가 2배면 절반) */
+export const useTlLen = (c: Clip) => useLen(c) / clipRate(c);
 /** 선택 방법: one = 이것만, toggle = Ctrl+클릭(넣고 빼기), range = Shift+클릭(기준부터 여기까지), keep = 여러 개 선택을 유지한 채 기준만 바꿈 */
 export type PickMode = 'one' | 'toggle' | 'range' | 'keep';
 export const pickModeOf = (e: MouseEvent): PickMode => (e.ctrlKey || e.metaKey ? 'toggle' : e.shiftKey ? 'range' : 'one');
@@ -40,7 +44,7 @@ export function selectClip(c: Clip | null, mode: PickMode = 'one') {
   const tv = $('#trimVid'); if (tv.src !== c.url) tv.src = c.url;
   $('#trimIn').value = c.inPt.toFixed(2);
   $('#trimOut').value = useEnd(c).toFixed(2);
-  renderClipList();
+  renderClipList(); renderClipFx();
 }
 export function setTrim(which: 'in' | 'out', val: string | number) {
   const c = S.selClip; if (!c || !c.dur) return;
@@ -187,7 +191,7 @@ export function addClipsAt(cs: Clip[], k: number, t: number) {
   let at = t;
   for (const c of cs) {
     if (add.length && at >= L - 0.1) break;
-    let len = useLen(c); if (at + len > L) len = Math.max(0.2, L - at);
+    let len = useTlLen(c); if (at + len > L) len = Math.max(0.2, L - at);
     add.push(newItem(c, at, len)); at += len;
   }
   commit(add.length > 1 ? `조각 ${add.length}개 추가` : '조각 추가', () => { S.tracks[k].push(...add); S.selItem = add[0]; S.selItems = add.length > 1 ? add : []; S.track = k; });
@@ -218,7 +222,7 @@ export function prependSelectedClip() {
   const tr = S.tracks[S.track]; if (!tr) return;
   const L = limitDur(), add: VideoItem[] = [];
   let at = 0;
-  for (const c of cs) { if (add.length && at >= L - 0.1) break; const len = Math.min(useLen(c), L - at); add.push(newItem(c, at, len)); at += len; }
+  for (const c of cs) { if (add.length && at >= L - 0.1) break; const len = Math.min(useTlLen(c), L - at); add.push(newItem(c, at, len)); at += len; }
   const len = at;
   commit(add.length > 1 ? `맨 앞에 ${add.length}개 추가` : '맨 앞에 추가', () => {
     for (const g of tr) { g.start += len; g.end += len; }
@@ -234,7 +238,7 @@ export function tlSnap(t: number) {
 }
 /** 조각을 t에서 둘로 나눔 (뒤쪽 조각은 원본에서 그만큼 뒤부터 재생) */
 function splitItem(g: Item, t: number): Item {
-  const ng = { ...g, start: t, off: g.off + (t - g.start) * (g.rate || 1) } as Item;
+  const ng = { ...g, start: t, off: g.off + (t - g.start) * rateOf(g) } as Item;
   g.end = t; listOf(g).push(ng);
   return ng;
 }

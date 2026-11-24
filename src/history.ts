@@ -7,7 +7,10 @@
 //   record('조각 옮기기') ... afterEdit()              끌기·슬라이더처럼 계속 바뀌는 조작. 시작할 때 한 번 기록, 끝날 때 갱신
 // fn이 false를 돌려주면 아무것도 안 바뀐 것으로 보고 기록을 취소함.
 import { S } from './state';
-import type { Item, UndoEntry } from './types';
+import type { Clip, ClipFx, Item, UndoEntry } from './types';
+import { defaultFx } from './clipFx';
+import { renderClipFx } from './clipFxUi';
+import { renderClipList } from './clips';
 import { afterAudioChange, renderSongList } from './songs';
 import { updateBeatInfo } from './beats';
 import { ensureTracks, refreshTimeline, sortTrack, listOf, selectedItems } from './timeline';
@@ -26,6 +29,7 @@ function snapshot(label: string): UndoEntry {
     audio: S.audio.map(g => ({ ...g })),
     dur: [S.set.durMode, S.set.durSec],
     sel: posOf(S.selItem),
+    fx: S.clips.map(c => [c, { ...(c.fx || defaultFx()), crop: [...(c.fx || defaultFx()).crop] }] as [Clip, ClipFx]),
     multi: selectedItems().length > 1 ? selectedItems().map(posOf).filter((p): p is [number, number] => !!p) : [],
   };
 }
@@ -41,6 +45,8 @@ function restore(u: UndoEntry) {
   S.beats = u.beats; S.songs = u.songs; S.tracks = u.tracks; S.audio = u.audio;
   [S.set.durMode, S.set.durSec] = u.dur;
   const p = u.sel;
+  for (const [c, f] of u.fx || []) if (S.clips.includes(c)) c.fx = { ...f, crop: [...f.crop] };
+  renderClipList(); renderClipFx();
   S.selItem = atPos(p);
   S.selItems = (u.multi || []).map(atPos).filter((g): g is Item => !!g);
   if (p && p[0] >= 0 && S.selItem) S.track = p[0];

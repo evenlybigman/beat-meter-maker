@@ -3,6 +3,7 @@
 // 타임라인·미리보기 마우스 조작
 import { afterEdit, record, redo, undo } from './history';
 import { ITEM_TYPES } from './itemTypes';
+import { rateOf } from './clipFx';
 import { now, projDur, seek, setDuration, updateDurUI } from './audio';
 import { R, addBeat, hit, nearestBeat, removeBeatAt, setA, setB, startRec, stopRec, tap } from './beats';
 import { cv, strip } from './dom';
@@ -111,9 +112,9 @@ window.addEventListener('mousemove', e => {
     }
   } else if (d.mode === 'trimL') {
     let ns = snapTo(o.start + dt, d.pts, tol);
-    const minS = o.start - o.off / (g.rate || 1);   // 원본 영상 맨 앞까지만
+    const minS = o.start - o.off / rateOf(g);   // 원본 영상 맨 앞까지만
     ns = Math.max(0, minS, Math.min(o.end - 0.1, ns));
-    g.start = ns; g.off = o.off + (ns - o.start) * (g.rate || 1);
+    g.start = ns; g.off = o.off + (ns - o.start) * rateOf(g);
   } else {
     let ne = snapTo(o.end + dt, d.pts, tol);
     g.end = Math.min(Math.max(g.start + 0.1, ne), ITEM_TYPES[g.kind].maxEnd(g));   // 종류별 한계 (음악은 원본 끝까지)

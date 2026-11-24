@@ -259,3 +259,38 @@ test('33. 클립 10개 랜덤 채우기 후 재생: 나와야 할 클립의 재�
   expect(notReady.length / m.length, '준비 안 된 비율').toBeLessThan(0.05);
   expect(Math.max(...m.map(r => r[4])), '화면당 재생기 수').toBeLessThanOrEqual(2);
 });
+
+test('39. 클립 기본 편집 내보내기: 클립 회전·상하 반전·자르기·채도가 결과 영상에 그대로, 클립 속도 2배면 원본을 2배로', async ({ desk }) => {
+  const a = await desk.launch();
+  await loadMusic(a, [SONG.s128]);
+  await loadClips(a, ['halves.mp4']);   // 왼쪽 빨강 · 오른쪽 파랑
+  const run = async fx => {
+    await a.E(`(() => {
+      Object.assign(S.set, { layout: '1', res: '640x360', fps: 30, durMode: 'manual', durSec: 1, showOverlay: false, fit: 'cover' });
+      const c = S.clips.find(x => x.name === 'halves.mp4');
+      c.fx = Object.assign({ rot: 0, flipH: false, flipV: false, crop: [0, 0, 0, 0], zoom: 1, bri: 100, con: 100, sat: 100, rate: 1 }, ${JSON.stringify(fx)});
+      S.tracks = [[{ kind: 'video', src: c, srcName: c.name, start: 0, end: 1, off: 0, rate: 1, vol: 0, x: 0, y: 0, zoom: 1, flip: false, rot: 0, tilt: 0 }]];
+      refreshTimeline();
+    })()`);
+    const r = await exportNow(a);
+    expect(r && r.frames).toBe(30);
+    const px = (x, y) => pixel(desk.out, 0.5, x, y), at = (x, y) => colorName(px(x, y));
+    return { top: at(320, 60), bottom: at(320, 300), left: at(160, 180), right: at(480, 180), raw: px(160, 180) };
+  };
+  expect(await run({ rot: 90 })).toMatchObject({ top: 'red', bottom: 'blue' });
+  expect(await run({ rot: 90, flipV: true })).toMatchObject({ top: 'blue', bottom: 'red' });   // 돌린 뒤 상하 반전
+  expect(await run({ crop: [0, 0, 0.45, 0] })).toMatchObject({ left: 'red', right: 'red' });    // 오른쪽(파랑) 잘라 냄
+  const g = (await run({ sat: 0 })).raw;                                                         // 채도 0 → 회색
+  expect(Math.max(...g) - Math.min(...g)).toBeLessThan(25);
+
+  // 속도 2배: 1초마다 색이 바뀌는 영상(빨강→초록→파랑)에서 0.75초엔 초록, 1.25초엔 파랑
+  await loadClips(a, ['colors.mp4']);
+  await a.E(`(() => {
+    Object.assign(S.set, { durSec: 1.5 });
+    const c = S.clips.find(x => x.name === 'colors.mp4'); c.fx.rate = 2;
+    S.tracks = [[{ kind: 'video', src: c, srcName: c.name, start: 0, end: 1.5, off: 0, rate: 1, vol: 0, x: 0, y: 0, zoom: 1, flip: false, rot: 0, tilt: 0 }]];
+    refreshTimeline();
+  })()`);
+  await exportNow(a);
+  expect([0.25, 0.75, 1.25].map(t => colorName(pixel(desk.out, t, 320, 180)))).toEqual(['red', 'green', 'blue']);
+});

@@ -44,6 +44,23 @@
       <div class="row"><label>사용 끝(초)</label><input type="number" id="trimOut" step="0.1" min="0"><button id="btnTrimOut">현재 프레임</button></div>
       <div class="btns"><button class="pri" id="btnTrimAdd"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span>현재 위치에 추가</span><kbd>A</kbd></button><button id="btnTrimPrepend"><svg class="i" aria-hidden="true"><use href="#i-first"/></svg><span>맨 앞에</span><kbd>Q</kbd></button><button id="btnTrimAppend"><svg class="i" aria-hidden="true"><use href="#i-last"/></svg><span>끝에 이어 붙이기</span><kbd>E</kbd></button></div>
       <div class="hint">여기서 정한 구간이 타임라인에 새로 넣을 때의 기본 범위입니다. 넣은 뒤에도 타임라인에서 자유롭게 늘리고 줄일 수 있습니다.</div>
+      <div id="fxBox" class="card" style="margin-top:12px">
+        <div class="sub">클립 기본 편집 <span class="hint" id="fxTarget"></span></div>
+        <div class="hint" style="margin-bottom:8px">이 클립으로 만든 조각 전부에 적용됩니다 (이미 넣은 조각, 랜덤 채우기 포함). 조각마다 준 회전·반전·확대는 여기에 더해집니다.</div>
+        <canvas id="fxPrev" width="320" height="180"></canvas>
+        <div class="row"><label>회전</label><div class="seg" id="fxRot"><button data-rot="0">0°</button><button data-rot="90">90°</button><button data-rot="180">180°</button><button data-rot="270">270°</button></div></div>
+        <div class="row"><label>반전</label><label class="chk"><input type="checkbox" id="fxFlipH"> 좌우</label><label class="chk"><input type="checkbox" id="fxFlipV"> 상하</label></div>
+        <div class="row"><label>자르기 왼쪽</label><input type="range" id="fxCropL" min="0" max="45" step="1"><span class="v" id="vCropL"></span></div>
+        <div class="row"><label>자르기 위</label><input type="range" id="fxCropT" min="0" max="45" step="1"><span class="v" id="vCropT"></span></div>
+        <div class="row"><label>자르기 오른쪽</label><input type="range" id="fxCropR" min="0" max="45" step="1"><span class="v" id="vCropR"></span></div>
+        <div class="row"><label>자르기 아래</label><input type="range" id="fxCropB" min="0" max="45" step="1"><span class="v" id="vCropB"></span></div>
+        <div class="row"><label>확대</label><input type="range" id="fxZoom" min="100" max="300" step="5"><span class="v" id="vfxZoom"></span></div>
+        <div class="row"><label>밝기</label><input type="range" id="fxBri" min="0" max="200" step="1"><span class="v" id="vfxBri"></span></div>
+        <div class="row"><label>대비</label><input type="range" id="fxCon" min="0" max="200" step="1"><span class="v" id="vfxCon"></span></div>
+        <div class="row"><label>채도</label><input type="range" id="fxSat" min="0" max="200" step="1"><span class="v" id="vfxSat"></span></div>
+        <div class="row"><label>기본 속도</label><select id="fxRate"></select></div>
+        <div class="btns" style="margin-bottom:0"><button id="fxReset">기본값으로</button></div>
+      </div>
     </div>
   </div>
 

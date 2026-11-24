@@ -5,7 +5,7 @@ import { CLK, audioOut, ensureAudio, now, projDur, seek, startAudio, stopAudio }
 import { R, stopRec } from './beats';
 import { stopBeatSounds } from './beatsound';
 import { cv } from './dom';
-import { drawFrame, drawOverlay, drawStrip } from './render';
+import { drawClipPreview, drawFrame, drawOverlay, drawStrip } from './render';
 import { autoBitrate } from './settings';
 import { S } from './state';
 import { allItems } from './timeline';
@@ -28,6 +28,7 @@ function drawTick() {
   drawFrame(t);
   drawOverlay(t);
   drawStrip(t);
+  drawClipPreview();
   const dur = S.music.dur || 0;
   $('#time').textContent = `${fmt(t)} / ${fmtShort(dur)}`;
   if (!seekUi.dragging && dur) $('#seek').value = Math.round(t / dur * 1000);

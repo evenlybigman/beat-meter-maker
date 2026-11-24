@@ -23,7 +23,7 @@ export interface AppState {
   selItem: VideoItem | AudioItem | null; selClip: Clip | null;
   /** 여러 개 선택 (Ctrl·Shift 클릭, 드래그). selItem·selClip은 그중 기준이 되는 하나 (편집 패널에 보이는 것) */
   selItems: (VideoItem | AudioItem)[]; selClips: Clip[];
-  pendingTrims: Record<string, { inPt?: number; outPt?: number }>;
+  pendingTrims: Record<string, { inPt?: number; outPt?: number; fx?: unknown }>;
   /** 화면마다 트랙 1개 */
   tracks: VideoItem[][]; track: number;
   /** 지금 선택한 화면의 트랙 (S.tracks[S.track]) */

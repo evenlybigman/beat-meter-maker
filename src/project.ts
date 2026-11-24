@@ -4,6 +4,7 @@
 import { clearHistory, record } from './history';
 import type { AudioItem, ProjectFile, VideoItem } from './types';
 import { itemFromFile, itemToFile } from './itemTypes';
+import { isDefaultFx, normFx } from './clipFx';
 /** 자동 저장 한 건 */
 export interface AutosaveEntry { time: number; data: ProjectFile }
 import { R, stopRec, syncBeatInputs, updateBeatInfo } from './beats';
@@ -28,7 +29,7 @@ export function projectData(): ProjectFile {
     sounds: SND.list.filter(x => x.custom).map(x => ({ id: x.id, name: x.name, b64: x.b64 || '' })),
     bpm: S.bpm, offset: S.offset, musicStart: S.musicStart, beats: S.beats, set: S.set,
     songs: S.songs.map(x => x.name),
-    clips: S.clips.map(c => c.name), trims: S.clips.map(c => ({ name: c.name, inPt: c.inPt, outPt: c.outPt })),
+    clips: S.clips.map(c => c.name), trims: S.clips.map(c => ({ name: c.name, inPt: c.inPt, outPt: c.outPt, ...(isDefaultFx(c.fx) ? {} : { fx: c.fx }) })),
     audio: S.audio.map(itemToFile),
     tracks: S.tracks.map(tr => tr.map(itemToFile)),
     musicVol: S.musicVol,
@@ -144,7 +145,7 @@ export function loadProjectData(d: ProjectFile) {
   S.beats = (d.beats || []).slice().sort((a, b) => a - b);
   S.clips.sort((a, b) => { const ia = d.clips.indexOf(a.name), ib = d.clips.indexOf(b.name); return (ia < 0 ? 1e9 : ia) - (ib < 0 ? 1e9 : ib); });
   if (d.musicStart != null) { S.musicStart = d.musicStart; $('#mStart').value = S.musicStart; }
-  S.pendingTrims = {}; (d.trims || []).forEach(tr => { if (!tr || typeof tr.name !== 'string') return; S.pendingTrims[tr.name] = tr; const c = S.clips.find(x => x.name === tr.name); if (c) { c.inPt = tr.inPt || 0; c.outPt = tr.outPt || 0; } });
+  S.pendingTrims = {}; (d.trims || []).forEach(tr => { if (!tr || typeof tr.name !== 'string') return; S.pendingTrims[tr.name] = tr; const c = S.clips.find(x => x.name === tr.name); if (c) { c.inPt = tr.inPt || 0; c.outPt = tr.outPt || 0; c.fx = normFx(tr.fx); } });
   applySettingsToUI(); syncBeatInputs(); renderClipList(); updateBeatInfo();
   S.tracks = (d.tracks.length ? d.tracks : [[]]).map(tr => sortTrack(tr.map(itemFromFile)) as VideoItem[]);
   if (d.musicVol != null) setMusicVol(d.musicVol);

@@ -38,6 +38,7 @@ import { desk } from './desktop';
 import { APP_INFO, closeAbout, openAbout } from './appInfo';
 import { $ } from './util';
 import { initUpdate } from './update';
+import { initClipFx } from './clipFxUi';
 
 setPreset('q');
 $('#btnDiag').onclick = saveDiag;
@@ -52,6 +53,7 @@ try { const pv = JSON.parse(localStorage.getItem('bmm.pv') || 'null'); if (pv &&
 fitCanvas();
 initAutosave();
 initUpdate();
+initClipFx();
 updateHistoryUI();   // 모듈을 모두 불러온 뒤 (history 모듈 초기화 전에 부르면 안 됨)
 requestAnimationFrame(frame);
 

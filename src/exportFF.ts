@@ -10,9 +10,9 @@ import { projDur } from './audio';
 import { curSnd, encodeWav } from './beatsound';
 import { desk, type DeskApi } from './desktop';
 import { cv, cx } from './dom';
-import { rotSize } from './itemTypes';
+import { rateOf } from './clipFx';
 import { pause } from './player';
-import { drawOverlay, drawPanelImg, layoutRects, panelCaches, panelCount } from './render';
+import { drawOverlay, drawPanelImg, layoutRects, panelCaches, panelCount, placeOf } from './render';
 import { autoBitrate, outSize } from './settings';
 import { S } from './state';
 import { activeIdx } from './timeline';
@@ -47,7 +47,7 @@ function clipAudioList(dur: number) {
   const out = [];
   for (let k = 0; k < panelCount(); k++) for (const g of S.tracks[k] || []) {
     if (!(g.vol > 0) || !g.src || !g.src.path || g.start >= dur) continue;
-    const len = Math.min(g.end, dur) - g.start, rate = g.rate || 1;
+    const len = Math.min(g.end, dur) - g.start, rate = rateOf(g);
     out.push({ path: g.src.path, start: g.start, len, ss: g.off, rate, vol: g.vol, loop: g.off + len * rate > g.src.dur - 0.02 });
   }
   return out;
@@ -56,9 +56,8 @@ function clipAudioList(dur: number) {
 /** 조각 하나의 디코더: 첫 프레임 시각에 맞춰 원본 지점을 정하고, 화면 크기에 맞게 줄여서 받음 */
 interface Dec { id: string; w: number; h: number; c: HTMLCanvasElement; ctx: CanvasRenderingContext2D; has: boolean; done: boolean }
 async function openDec(D: DeskApi, g: VideoItem, t: number, r: { w: number; h: number }, n: number): Promise<Dec> {
-  const c = g.src!, rate = g.rate || 1, vw = c.w || 1280, vh = c.h || 720;
-  const [bw, bh] = rotSize(g, vw, vh);   // 돌린 뒤 크기 기준 (미리보기와 같은 계산)
-  const s = (S.set.fit === 'contain' ? Math.min(r.w / bw, r.h / bh) : Math.max(r.w / bw, r.h / bh)) * (g.zoom || 1);
+  const c = g.src!, rate = rateOf(g), vw = c.w || 1280, vh = c.h || 720;
+  const s = placeOf(g, vw, vh, r.w, r.h).s;   // 미리보기와 같은 계산 (자르기·회전·확대 포함)
   const k = Math.min(1, s), w = even(vw * k), h = even(vh * k);   // 원본보다 크게는 받지 않음 (캔버스가 늘림)
   let ss = g.off + Math.max(0, t - g.start) * rate;
   if (ss >= c.dur - 0.02) ss = ss % Math.max(0.1, c.dur);

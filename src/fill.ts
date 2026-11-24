@@ -3,11 +3,12 @@
 // 랜덤 자동 채우기
 import type { Clip, VideoItem } from './types';
 import { commit } from './history';
+import { clipRate, rateOf } from './clipFx';
 import { projDur } from './audio';
 import { getRange } from './beats';
 import { panelCount } from './render';
 import { S } from './state';
-import { newItem, pickedClips, sortTrack, useLen } from './timeline';
+import { newItem, pickedClips, sortTrack, useLen, useTlLen } from './timeline';
 import { $, lowerBound, toast } from './util';
 
 /* ---------- 랜덤 자동 채우기 (교차) ---------- */
@@ -27,14 +28,14 @@ export function clearRange(tr: VideoItem[], a: number, b: number) {
   for (const g of tr) {
     if (g.end <= a || g.start >= b) { out.push(g); continue; }
     if (g.start < a) out.push({ ...g, end: a });
-    if (g.end > b) out.push({ ...g, start: b, off: g.off + (b - g.start) * (g.rate || 1) });
+    if (g.end > b) out.push({ ...g, start: b, off: g.off + (b - g.start) * rateOf(g) });
   }
   return sortTrack(out);
 }
 export function randomFill() {
   const clips = ($('#fillClips').value === 'sel' ? pickedClips() : S.clips).filter(c => c.dur > 0.05);   // 선택한 클립만 쓰기
   if (!clips.length) return toast('먼저 영상 클립을 불러와 주세요');
-  const dur = projDur() || clips.reduce((m, c) => m + useLen(c), 0);
+  const dur = projDur() || clips.reduce((m, c) => m + useTlLen(c), 0);
   const scope = $('#fillScope').value, target = $('#fillTarget').value;
   let a = 0, b = dur;
   if (scope === 'range') { [a, b] = getRange(); b = Math.min(b, dur); if (!(b > a)) return toast('비트 탭/비트 만들기 바의 구간을 확인해 주세요'); }
@@ -69,7 +70,7 @@ export function randomFill() {
           const cands = clips.filter((c, ii) => sc[ii] <= m + 1e-6);
           const c = cands[Math.floor(rnd() * cands.length)]; lastC = c;
           const g = newItem(c, s0, len);
-          g.off = randOff ? c.inPt + rnd() * Math.max(0, useLen(c) - len) : c.inPt;
+          g.off = randOff ? c.inPt + rnd() * Math.max(0, useLen(c) - len * clipRate(c)) : c.inPt;   // 속도가 빠르면 원본을 더 많이 씀
           tr.push(g); made++;
         }
       }

@@ -120,6 +120,8 @@ ul.clips li{display:flex;align-items:center;gap:7px;padding:5px 6px 5px 9px;bord
 ul.clips li:hover{border-color:var(--line2)}
 ul.clips li.sel{border-color:rgba(var(--acc-rgb),.65);background:rgba(var(--acc-rgb),.07)}
 ul.clips li{user-select:none;-webkit-user-select:none}
+#fxPrev{display:block;width:100%;aspect-ratio:16/9;background:#000;border-radius:6px;margin-bottom:8px}
+label.chk{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;margin-right:14px;color:var(--text)}
 #clipGhost{position:fixed;z-index:40;pointer-events:none;display:none;padding:4px 10px;border-radius:var(--r);background:var(--acc);color:#04201c;font-weight:600;font-size:12px;box-shadow:0 6px 20px rgba(0,0,0,.4)}
 body.carrying,body.carrying *{cursor:copy!important}
 ul.clips li.cur{border-color:var(--acc);box-shadow:inset 3px 0 0 var(--acc)}

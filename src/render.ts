@@ -4,7 +4,8 @@
 import type { Clip, VideoItem } from './types';
 import { actx, audioOut, projDur } from './audio';
 import { cv, cx, strip, sx } from './dom';
-import { rotSize } from './itemTypes';
+import { normRot } from './itemTypes';
+import { cssFilter, fxOf, rateOf } from './clipFx';
 import { audioAt } from './songs';
 import { S } from './state';
 import { AUD_H, LANE_H, WAVE_H, activeIdx, nextItem, viewStart } from './timeline';
@@ -89,7 +90,7 @@ export function releaseVids(fn: (c: Clip, k: number) => boolean) { for (const e 
 export const allVids = () => pool.map(e => e.v);
 export const poolSize = () => pool.length;
 export function wantTime(g: VideoItem, t: number) {
-  const c = g.src!, rate = g.rate || 1;
+  const c = g.src!, rate = rateOf(g);
   let want = g.off + Math.max(0, t - g.start) * rate;
   if (want >= c.dur - 0.02) want = want % Math.max(0.1, c.dur);   // 조각이 원본보다 길면 반복
   return want;
@@ -113,7 +114,7 @@ export function syncAll(t: number): Panel[] {
     let v: MediaVid | null = null;
     if (g && g.src && g.src.dur) {
       const c = g.src;
-      const rate = g.rate || 1, want = wantTime(g, t);
+      const rate = rateOf(g), want = wantTime(g, t);
       // 같은 클립·같은 지점이면 video 하나를 같이 씀 → 화면끼리 완전히 같은 프레임
       const dup = shared.find(s => s.c === c && s.rate === rate && Math.abs(s.want - want) < 0.05);
       if (dup) { v = dup.v; dup.vol = Math.max(dup.vol, g.vol || 0); }
@@ -161,29 +162,52 @@ export function drawPanel(p: Panel, r: PanelRect, k: number) {
   const { v, g } = p, ok = v && v.readyState >= 2 && v.videoWidth && !v.seeking;
   drawPanelImg(g, ok ? v : null, ok ? v.videoWidth : 0, ok ? v.videoHeight : 0, r, k);
 }
+/** 조각을 w×h 화면에 놓는 계산 (미리보기·내보내기·클립 편집 미리보기 공통)
+ *  클립 기본 편집(자르기·회전·반전·확대)과 조각 설정(회전·기울기·반전·확대)을 합침.
+ *  sx~sh: 원본에서 쓸 영역(자르기), s: 배율
+ *  그리는 순서: 클립 편집으로 '바로잡은 클립'(자르기 → 회전 → 보이는 그대로 반전)을 만든 뒤, 그 위에 조각 설정(반전 → 회전·기울기) */
+export function placeOf(g: VideoItem, vw: number, vh: number, w: number, h: number, fit = S.set.fit) {
+  const fx = fxOf(g.src), [cl, ct, cr, cb] = fx.crop;
+  const sx = vw * cl, sy = vh * ct, sw = Math.max(1, vw * (1 - cl - cr)), sh = Math.max(1, vh * (1 - ct - cb));
+  const rot = normRot((fx.rot || 0) + (g.rot || 0));
+  const [bw, bh] = rot === 90 || rot === 270 ? [sh, sw] : [sw, sh];   // 돌린 뒤 크기로 화면 채우기 계산
+  const s = (fit === 'contain' ? Math.min(w / bw, h / bh) : Math.max(w / bw, h / bh)) * (g.zoom || 1) * (fx.zoom || 1);
+  return { sx, sy, sw, sh, s, crot: fx.rot || 0, cfh: !!fx.flipH, cfv: !!fx.flipV, gang: (g.rot || 0) + (g.tilt || 0), gflip: !!g.flip, filter: cssFilter(fx) };
+}
+/** ctx(w×h)에 조각 한 장 그리기: 검게 칠하고 → 위치·회전·반전 → 자른 영역을 배율대로 */
+export function paintItem(ctx: CanvasRenderingContext2D, g: VideoItem, img: CanvasImageSource, vw: number, vh: number, w: number, h: number, fit = S.set.fit) {
+  const p = placeOf(g, vw, vh, w, h, fit), dw = p.sw * p.s, dh = p.sh * p.s;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
+  ctx.translate(w / 2 + (g.x || 0) * w, h / 2 + (g.y || 0) * h);
+  if (p.gang) ctx.rotate(p.gang * Math.PI / 180);   // 조각 회전·기울기 (시계 방향). 기울여서 생긴 귀퉁이는 위에서 칠한 검은색
+  if (p.gflip) ctx.scale(-1, 1);                     // 조각 좌우 반전
+  if (p.cfh || p.cfv) ctx.scale(p.cfh ? -1 : 1, p.cfv ? -1 : 1);   // 클립 반전: 돌린 뒤 보이는 그대로
+  if (p.crot) ctx.rotate(p.crot * Math.PI / 180);   // 클립 회전
+  if (p.filter) ctx.filter = p.filter;
+  ctx.drawImage(img, p.sx, p.sy, p.sw, p.sh, -dw / 2, -dh / 2, dw, dh);
+  ctx.filter = 'none';
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
 /** 화면 하나 그리기. img가 null이면 직전 프레임 유지 (조각이 없으면 검은 화면) */
 export function drawPanelImg(g: VideoItem | null, img: CanvasImageSource | null, vw: number, vh: number, r: PanelRect, k: number) {
   const w = Math.max(1, Math.round(r.w)), h = Math.max(1, Math.round(r.h));
   const pc = panelCache(k, w, h), pcx = pc.getContext('2d')!;
   if (!g) pc._has = false;                      // 빈 구간은 검은 화면
-  else if (img && vw && vh) {
-    const [bw, bh] = rotSize(g, vw, vh);   // 돌린 뒤 크기로 화면 채우기 계산
-    const s = (S.set.fit === 'contain' ? Math.min(w / bw, h / bh) : Math.max(w / bw, h / bh)) * (g.zoom || 1);
-    const dw = vw * s, dh = vh * s;
-    pcx.setTransform(1, 0, 0, 1, 0, 0);
-    pcx.fillStyle = '#000'; pcx.fillRect(0, 0, w, h);
-    pcx.translate(w / 2 + (g.x || 0) * w, h / 2 + (g.y || 0) * h);
-    const ang = (g.rot || 0) + (g.tilt || 0);
-    if (ang) pcx.rotate(ang * Math.PI / 180);   // 시계 방향. 기울여서 생긴 귀퉁이는 위에서 칠한 검은색
-    if (g.flip) pcx.scale(-1, 1);
-    pcx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
-    pcx.setTransform(1, 0, 0, 1, 0, 0);
-    pc._has = true;
-  }
+  else if (img && vw && vh) { paintItem(pcx, g, img, vw, vh, w, h); pc._has = true; }
   const gp = r.g || 0;
   if (r.pip && gp > 0) { cx.fillStyle = S.set.gapColor; cx.fillRect(r.x - gp, r.y - gp, r.w + gp * 2, r.h + gp * 2); }
   if (pc._has) cx.drawImage(pc, r.x, r.y, r.w, r.h);
   else { cx.fillStyle = '#000'; cx.fillRect(r.x, r.y, r.w, r.h); }
+}
+/** 소스 탭 '클립 기본 편집' 결과 미리보기 (작은 캔버스, 전체가 보이게) */
+export function drawClipPreview() {
+  const cvs = document.getElementById('fxPrev') as HTMLCanvasElement | null, c = S.selClip;
+  if (!cvs || !c || !cvs.offsetParent) return;
+  const v = $('#trimVid') as HTMLVideoElement, ctx = cvs.getContext('2d')!;
+  if (v.readyState < 2 || !v.videoWidth) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cvs.width, cvs.height); return; }
+  const g = { kind: 'video', src: c, srcName: c.name, start: 0, end: 1, off: 0, rate: 1, vol: 0, x: 0, y: 0, zoom: 1, flip: false, rot: 0, tilt: 0 } as VideoItem;
+  paintItem(ctx, g, v, v.videoWidth, v.videoHeight, cvs.width, cvs.height, 'contain');
 }
 export function drawFrame(t: number) {
   const W = cv.width, H = cv.height, rects = layoutRects(), ps = syncAll(t);
