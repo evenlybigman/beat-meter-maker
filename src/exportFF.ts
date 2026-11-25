@@ -46,7 +46,7 @@ export async function renderMix(dur: number): Promise<AudioBuffer> {
 function clipAudioList(dur: number) {
   const out = [];
   for (let k = 0; k < panelCount(); k++) for (const g of S.tracks[k] || []) {
-    if (!(g.vol > 0) || !g.src || !g.src.path || g.start >= dur) continue;
+    if (!(g.vol > 0) || !g.src || !g.src.path || g.src.image || g.start >= dur) continue;   // 이미지는 소리 없음
     const len = Math.min(g.end, dur) - g.start, rate = rateOf(g);
     out.push({ path: g.src.path, start: g.start, len, ss: g.off, rate, vol: g.vol, loop: g.off + len * rate > g.src.dur - 0.02 });
   }
@@ -107,10 +107,11 @@ export async function exportDesktop() {
     for (let i = 0; i < N && !EXP.cancel; i++) {
       const t = i / fps, rects = layoutRects(); tm = performance.now();
       // 1) 화면마다 이번 프레임 받기 (기다리는 동안 다른 그리기가 끼어들지 않게, 그리기는 2)에서 한 번에)
-      const panels: { g: VideoItem | null; d: Dec | null }[] = [];
+      const panels: { g: VideoItem | null; d: Dec | null; img?: ImageBitmap }[] = [];
       for (let k = 0; k < rects.length; k++) {
         const tr = S.tracks[k] || [], j = activeIdx(tr, t), g = j >= 0 ? tr[j] : null;
         let d: Dec | null = null;
+        if (g && g.src && g.src.image) { panels.push({ g, d, img: g.src.bmp }); continue; }   // 이미지: ffmpeg 없이 그림 그대로
         if (g && g.src && g.src.path) {
           d = decs.get(g) || null;
           if (!d) { d = await openDec(D, g, t, rects[k], nDec++); decs.set(g, d); }
@@ -124,7 +125,7 @@ export async function exportDesktop() {
       }
       // 2) 그리기 → 3) ffmpeg로 보내기
       cx.fillStyle = S.set.gapColor; cx.fillRect(0, 0, W, H);
-      rects.forEach((r, k) => { const { g, d } = panels[k]; drawPanelImg(g, d && d.has ? d.c : null, d ? d.w : 0, d ? d.h : 0, r, k); });
+      rects.forEach((r, k) => { const { g, d, img } = panels[k]; if (img) drawPanelImg(g, img, img.width, img.height, r, k); else drawPanelImg(g, d && d.has ? d.c : null, d ? d.w : 0, d ? d.h : 0, r, k); });
       drawOverlay(t); lap('draw');
       if (ve) {
         const vf = new VideoFrame(cv, { timestamp: Math.round(i * 1e6 / fps), duration: Math.round(1e6 / fps) });

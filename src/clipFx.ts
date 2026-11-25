@@ -10,7 +10,7 @@ export const fxOf = (c: Clip | null | undefined): ClipFx => (c && c.fx) || DEF;
 export const isDefaultFx = (fx: ClipFx | undefined) => !fx || JSON.stringify(fx) === JSON.stringify(DEF);
 /** 밝기·대비·채도 → 캔버스 filter 문자열 (그대로면 빈 문자열) */
 export const cssFilter = (fx: ClipFx) => (fx.bri === 100 && fx.con === 100 && fx.sat === 100 ? '' : `brightness(${fx.bri}%) contrast(${fx.con}%) saturate(${fx.sat}%)`);
-export const clipRate = (c: Clip | null | undefined) => fxOf(c).rate || 1;
+export const clipRate = (c: Clip | null | undefined) => (c && c.image ? 1 : fxOf(c).rate || 1);   // 이미지는 속도 없음
 /** 실제 재생 속도 = 조각 속도 × 클립 기본 속도 (음악 조각은 조각 속도만) */
 export const rateOf = (g: Item) => (g.rate || 1) * (g.kind === 'video' ? clipRate(g.src) : 1);
 export const RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];

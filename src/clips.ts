@@ -16,6 +16,11 @@ import { defaultFx, isDefaultFx, normFx } from './clipFx';
 import { renderClipFx } from './clipFxUi';
 
 /* ---------- 클립 목록 ---------- */
+/** 이미지 클립을 타임라인에 넣을 때의 기본 길이(초) */
+export const IMG_LEN = 2;
+export const clampImgLen = (v: unknown) => Math.max(0.2, Math.min(600, +(v as number) || IMG_LEN));
+export const isVideoFile = (f: { name: string; type: string }) => f.type.startsWith('video/') || /\.(mp4|webm|mov|mkv|m4v)$/i.test(f.name);
+export const isImageFile = (f: { name: string; type: string }) => f.type.startsWith('image/') || /\.(jpe?g|png|webp|gif|bmp|avif|hei[cf])$/i.test(f.name);
 export function addClips(files: (File | PathFile)[]) {
   // 타임라인이 비어 있으면 선택한 순서대로 이어 붙임.
   // 파일마다 읽기가 끝나는 순서가 달라서, 앞 파일이 다 읽힐 때까지 뒤 파일 배치를 기다림.
@@ -33,26 +38,37 @@ export function addClips(files: (File | PathFile)[]) {
     renderClipList(); refreshTimeline();
   };
   for (const f of files) {
-    if (!f.type.startsWith('video/') && !/\.(mp4|webm|mov|mkv|m4v)$/i.test(f.name)) continue;
-    // 길이·크기만 읽는 임시 video. 읽고 나면 바로 정리 (재생은 render.ts의 video를 씀)
-    const v = document.createElement('video');
-    v.muted = true; v.preload = 'metadata';
-    let fin = false;
-    const done = () => { fin = true; v.removeAttribute('src'); try { v.load(); } catch (e) {} v.remove(); };
+    const isImg = isImageFile(f);
+    if (!isImg && !isVideoFile(f)) continue;
     const path = filePath(f);
-    v.src = path ? desk()!.mediaUrl(path) : URL.createObjectURL(f as File);   // 데스크톱: 원본 파일을 바로 읽음
-    const c: Clip = { name: f.name, url: v.src, dur: 0, w: 0, h: 0, inPt: 0, outPt: 0, hue: (S.clips.length * 67 + 200) % 360, path: path || undefined, fx: defaultFx() };
+    const url = path ? desk()!.mediaUrl(path) : URL.createObjectURL(f as File);   // 데스크톱: 원본 파일을 바로 읽음
+    const c: Clip = { name: f.name, url, dur: 0, w: 0, h: 0, inPt: 0, outPt: 0, hue: (S.clips.length * 67 + 200) % 360, path: path || undefined, fx: defaultFx(), ...(isImg ? { image: true } : {}) };
     batch.push(c);
-    v.addEventListener('loadedmetadata', () => {
-      if (fin) return;
-      c.dur = v.duration || 0; c.w = v.videoWidth; c.h = v.videoHeight; done();
-      const pt = S.pendingTrims[c.name]; if (pt) { c.inPt = pt.inPt || 0; c.outPt = pt.outPt || 0; if (pt.fx) c.fx = normFx(pt.fx); }
+    const ready = () => {
+      const pt = S.pendingTrims[c.name];
+      if (pt) { c.inPt = pt.inPt || 0; c.outPt = pt.outPt || 0; if (pt.fx) c.fx = normFx(pt.fx); if (c.image && pt.len) c.dur = clampImgLen(pt.len); }
       for (const g of allItems()) if (!g.src && g.srcName === c.name) g.src = c;
       if (!S.selClip) selectClip(c);
       placeReady();
-    });
-    v.addEventListener('error', () => { if (fin) return; done(); toast(`재생할 수 없는 형식: ${f.name}`); c.failed = true; removeClip(c); placeReady(); });
-    $('#vids').appendChild(v);
+    };
+    const fail = (msg: string) => { toast(`${msg}: ${f.name}`); c.failed = true; removeClip(c); placeReady(); };
+    if (isImg) {
+      // 이미지: 한 번 그림으로 읽어 둠 (움직이는 GIF는 첫 장면). HEIC 등 브라우저가 못 읽는 형식은 실패
+      const img = new Image(); img.src = url;
+      img.decode().then(() => createImageBitmap(img)).then(bmp => {
+        c.bmp = bmp; c.w = bmp.width; c.h = bmp.height; c.dur = IMG_LEN; ready();
+      }).catch(() => fail(/\.hei[cf]$/i.test(f.name) ? '지원하지 않는 이미지 형식(HEIC) — JPG로 바꿔서 넣어 주세요' : '열 수 없는 이미지'));
+    } else {
+      // 길이·크기만 읽는 임시 video. 읽고 나면 바로 정리 (재생은 render.ts의 video를 씀)
+      const v = document.createElement('video');
+      v.muted = true; v.preload = 'metadata';
+      let fin = false;
+      const done = () => { fin = true; v.removeAttribute('src'); try { v.load(); } catch (e) {} v.remove(); };
+      v.src = url;
+      v.addEventListener('loadedmetadata', () => { if (fin) return; c.dur = v.duration || 0; c.w = v.videoWidth; c.h = v.videoHeight; done(); ready(); });
+      v.addEventListener('error', () => { if (fin) return; done(); fail('재생할 수 없는 형식'); });
+      $('#vids').appendChild(v);
+    }
     S.clips.push(c);
   }
   renderClipList(); refreshEmpty();
@@ -61,6 +77,7 @@ export function addClips(files: (File | PathFile)[]) {
 export function removeClip(c: Clip) {
   const i = S.clips.indexOf(c); if (i < 0) return;
   releaseVids(x => x === c); if (c.url.startsWith('blob:')) URL.revokeObjectURL(c.url);
+  if (c.bmp) { c.bmp.close(); c.bmp = undefined; }
   S.clips.splice(i, 1);
   S.tracks = S.tracks.map(tr => tr.filter(g => g.src !== c));
   if (S.selItem && S.selItem.kind !== 'audio' && S.selItem.src === c) S.selItem = null;
@@ -146,8 +163,8 @@ export function renderClipList() {
   const opt = document.querySelector<HTMLOptionElement>('#fillClips option[value="sel"]'); if (opt) opt.textContent = `선택한 클립만 (${Math.max(1, n)}개)`;
   S.clips.forEach((c, idx) => {
     const li = document.createElement('li');
-    const trimmed = c.inPt > 0 || (c.outPt > 0 && c.outPt < c.dur);
-    li.innerHTML = `<span class="sw" style="background:hsl(${c.hue},55%,50%)"></span><span class="n"></span>${trimmed ? '<span class="badge" title="사용 구간을 정함">구간</span>' : ''}${isDefaultFx(c.fx) ? '' : '<span class="badge" title="클립 기본 편집 있음">편집</span>'}<span class="d">${c.dur ? fmtShort(trimmed ? useLen(c) : c.dur) : '…'}</span><button class="ic" title="위로">${ic('up')}</button><button class="ic" title="아래로">${ic('down')}</button><button class="ic" title="삭제">${ic('x')}</button>`;
+    const trimmed = !c.image && (c.inPt > 0 || (c.outPt > 0 && c.outPt < c.dur));
+    li.innerHTML = `<span class="sw" style="background:hsl(${c.hue},55%,50%)"></span><span class="n"></span>${c.image ? '<span class="badge" title="이미지 — 타임라인에서 길이를 마음대로">이미지</span>' : ''}${trimmed ? '<span class="badge" title="사용 구간을 정함">구간</span>' : ''}${isDefaultFx(c.fx) ? '' : '<span class="badge" title="클립 기본 편집 있음">편집</span>'}<span class="d">${!c.dur ? '…' : c.image ? c.dur.toFixed(1) + '초' : fmtShort(trimmed ? useLen(c) : c.dur)}</span><button class="ic" title="위로">${ic('up')}</button><button class="ic" title="아래로">${ic('down')}</button><button class="ic" title="삭제">${ic('x')}</button>`;
     const nm = li.querySelector<HTMLElement>('.n')!; nm.textContent = `#${idx + 1} ${c.name}`; nm.title = c.name + ' — 타임라인으로 끌어다 놓기';
     li.classList.toggle('sel', multi ? S.selClips.includes(c) : S.selClip === c);
     li.classList.toggle('cur', multi && S.selClip === c);

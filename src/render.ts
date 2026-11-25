@@ -30,7 +30,7 @@ type ClipGain = { gain: { value: number; setTargetAtTime(v: number, t: number, c
 export type MediaVid = HTMLVideoElement & { _gain?: ClipGain; _src?: MediaElementAudioSourceNode };
 /** 화면마다 마지막 프레임을 보관하는 캔버스 */
 type PanelCanvas = HTMLCanvasElement & { _has: boolean };
-export interface Panel { v: MediaVid | null; g: VideoItem | null }
+export interface Panel { v: MediaVid | null; g: VideoItem | null; /** 이미지 클립이면 그 그림 */ img?: ImageBitmap }
 /** 타임라인 글꼴 (style.css와 같게) */
 const FONT = '"Pretendard Variable", Pretendard, "Segoe UI Variable Text", "Segoe UI", "Malgun Gothic", system-ui, sans-serif';
 /** 화면 색 (style.css의 :root와 맞춤) */
@@ -112,17 +112,18 @@ export function syncAll(t: number): Panel[] {
     const tr = S.tracks[k] || [];
     const i = activeIdx(tr, t), g = i >= 0 ? tr[i] : null;
     let v: MediaVid | null = null;
-    if (g && g.src && g.src.dur) {
+    if (g && g.src && g.src.image) out.push({ v: null, g, img: g.src.bmp });   // 이미지: video 없이 그림 그대로
+    else if (g && g.src && g.src.dur) {
       const c = g.src;
       const rate = rateOf(g), want = wantTime(g, t);
       // 같은 클립·같은 지점이면 video 하나를 같이 씀 → 화면끼리 완전히 같은 프레임
       const dup = shared.find(s => s.c === c && s.rate === rate && Math.abs(s.want - want) < 0.05);
       if (dup) { v = dup.v; dup.vol = Math.max(dup.vol, g.vol || 0); }
       else { const nv = getVid(c, k); v = nv; active.add(nv); driveVid(nv, rate, want); shared.push({ c, rate, want, v: nv, vol: g.vol || 0 }); }
-    }
-    out.push({ v, g });
+      out.push({ v, g });
+    } else out.push({ v, g });
     const nx = nextItem(tr, t);
-    if (nx && nx.src && nx.src.dur && nx.start - t < 1.5) {
+    if (nx && nx.src && nx.src.dur && !nx.src.image && nx.start - t < 1.5) {
       const nv = getVid(nx.src, k);
       if (nv !== v && !active.has(nv)) {
         active.add(nv);
@@ -159,6 +160,7 @@ export function panelCache(k: number, w: number, h: number) {
   return c;
 }
 export function drawPanel(p: Panel, r: PanelRect, k: number) {
+  if (p.img) { drawPanelImg(p.g, p.img, p.img.width, p.img.height, r, k); return; }
   const { v, g } = p, ok = v && v.readyState >= 2 && v.videoWidth && !v.seeking;
   drawPanelImg(g, ok ? v : null, ok ? v.videoWidth : 0, ok ? v.videoHeight : 0, r, k);
 }
@@ -205,9 +207,10 @@ export function drawClipPreview() {
   const cvs = document.getElementById('fxPrev') as HTMLCanvasElement | null, c = S.selClip;
   if (!cvs || !c || !cvs.offsetParent) return;
   const v = $('#trimVid') as HTMLVideoElement, ctx = cvs.getContext('2d')!;
-  if (v.readyState < 2 || !v.videoWidth) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cvs.width, cvs.height); return; }
+  const src: CanvasImageSource | null = c.image ? c.bmp || null : v.readyState >= 2 && v.videoWidth ? v : null;
+  if (!src) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cvs.width, cvs.height); return; }
   const g = { kind: 'video', src: c, srcName: c.name, start: 0, end: 1, off: 0, rate: 1, vol: 0, x: 0, y: 0, zoom: 1, flip: false, rot: 0, tilt: 0 } as VideoItem;
-  paintItem(ctx, g, v, v.videoWidth, v.videoHeight, cvs.width, cvs.height, 'contain');
+  paintItem(ctx, g, src, c.image ? c.w : v.videoWidth, c.image ? c.h : v.videoHeight, cvs.width, cvs.height, 'contain');
 }
 export function drawFrame(t: number) {
   const W = cv.width, H = cv.height, rects = layoutRects(), ps = syncAll(t);

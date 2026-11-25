@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Juke — Beat Meter Maker
 // 파일 끌어다 놓기, 미리보기 크기, 창 크기 변화
-import { addClips } from './clips';
+import { addClips, isImageFile, isVideoFile } from './clips';
 import { cv, strip } from './dom';
 import { loadProject } from './project';
 import { resizeStrip } from './render';
@@ -22,7 +22,7 @@ window.addEventListener('drop', e => {
   }
   const audios = files.filter(f => f.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|flac|aac|opus)$/i.test(f.name));
   const proj = files.find(f => /\.json$/i.test(f.name));
-  const vids = files.filter(f => f.type.startsWith('video/') || /\.(mp4|webm|mov|mkv|m4v)$/i.test(f.name));
+  const vids = files.filter(f => isVideoFile(f) || isImageFile(f));   // 영상과 이미지는 클립으로
   if (audios.length) loadMusicFiles(audios);
   if (vids.length) addClips(vids);
   if (proj) loadProject(proj);

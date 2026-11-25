@@ -41,7 +41,10 @@ export function selectClip(c: Clip | null, mode: PickMode = 'one') {
   if (!c) { box.style.display = 'none'; renderClipList(); return; }
   box.style.display = 'block';
   $('#trimName').textContent = c.name;
-  const tv = $('#trimVid'); if (tv.src !== c.url) tv.src = c.url;
+  box.classList.toggle('isImg', !!c.image); $('#trimTitle').textContent = c.image ? '이미지' : '클립 사용 구간';
+  const tv = $('#trimVid');
+  if (c.image) { if (tv.getAttribute('src')) { tv.removeAttribute('src'); try { tv.load(); } catch (e) {} } $('#imgLen').value = c.dur.toFixed(1); }
+  else if (tv.src !== c.url) tv.src = c.url;
   $('#trimIn').value = c.inPt.toFixed(2);
   $('#trimOut').value = useEnd(c).toFixed(2);
   renderClipList(); renderClipFx();
@@ -157,6 +160,7 @@ export function refreshItemEditor() {
   document.querySelectorAll<HTMLInputElement>('#segEdit select,#segEdit input,#segEdit button').forEach(el => el.disabled = !g);
   if (!g) { $('#segSelInfo').textContent = '선택 없음 — 타임라인의 조각을 클릭하세요'; return; }
   const k = trackOf(g);
+  $('#segEdit').classList.toggle('isImg', !!(g.src && g.src.image));   // 이미지 조각이면 원본 시작·소리·속도 칸 숨김
   const many = selectedItems().filter(x => x.kind === 'video').length;
   $('#segSelInfo').textContent = (many > 1 ? `조각 ${many}개 선택 — 아래 설정은 모두에 적용 · 기준: ` : '') + `${panelCount() > 1 ? `화면 ${k + 1} · ` : ''}${fmt(g.start)} ~ ${fmt(g.end)} (${(g.end - g.start).toFixed(2)}초)`;
   $('#segClip').value = g.src ? String(S.clips.indexOf(g.src)) : '';

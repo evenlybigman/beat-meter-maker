@@ -113,7 +113,7 @@ window.addEventListener('mousemove', e => {
     }
   } else if (d.mode === 'trimL') {
     let ns = snapTo(o.start + dt, d.pts, tol);
-    const minS = o.start - o.off / rateOf(g);   // 원본 영상 맨 앞까지만
+    const minS = g.kind === 'video' && g.src && g.src.image ? 0 : o.start - o.off / rateOf(g);   // 원본 영상 맨 앞까지만 (이미지는 제한 없음)
     ns = Math.max(0, minS, Math.min(o.end - 0.1, ns));
     g.start = ns; g.off = o.off + (ns - o.start) * rateOf(g);
   } else {

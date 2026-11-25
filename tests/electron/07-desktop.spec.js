@@ -294,3 +294,37 @@ test('39. 클립 기본 편집 내보내기: 클립 회전·상하 반전·자�
   await exportNow(a);
   expect([0.25, 0.75, 1.25].map(t => colorName(pixel(desk.out, t, 320, 180)))).toEqual(['red', 'green', 'blue']);
 });
+
+test('42. 이미지 클립 (데스크톱): 내보낸 영상에 이미지가 그대로(클립 편집 포함), 영상과 섞여도 정상, 프로젝트 다시 열면 경로로 자동 연결', async ({ desk }) => {
+  const a = await desk.launch();
+  await loadMusic(a, [SONG.s128]);
+  await loadClips(a, ['halves.png', 'anim.gif', 'colors.mp4']);
+  expect(await a.E('S.clips.map(c => [c.name, !!c.image])')).toEqual([['halves.png', true], ['anim.gif', true], ['colors.mp4', false]]);
+  await a.E(`(() => {
+    Object.assign(S.set, { layout: '1', res: '640x360', fps: 30, durMode: 'manual', durSec: 3, showOverlay: false, fit: 'cover' });
+    const [p, gif, v] = S.clips;
+    const it = (c, s, e, off = 0) => ({ kind: 'video', src: c, srcName: c.name, start: s, end: e, off, rate: 1, vol: 1, x: 0, y: 0, zoom: 1, flip: false, rot: 0, tilt: 0 });
+    S.tracks = [[it(p, 0, 1), it(v, 1, 2, 1), it(gif, 2, 3)]];   // 이미지 → 영상(초록 구간) → 움직이는 GIF
+    refreshTimeline();
+  })()`);
+  let r = await exportNow(a);
+  expect(r && r.frames).toBe(90);
+  const at = (t, x, y) => colorName(pixel(desk.out, t, x, y));
+  expect([at(0.5, 160, 180), at(0.5, 480, 180)]).toEqual(['red', 'blue']);   // PNG
+  expect(at(1.5, 320, 180)).toBe('green');                                    // 영상
+  expect([at(2.2, 320, 180), at(2.8, 320, 180)]).toEqual(['red', 'red']);     // GIF는 첫 장면 그대로
+  // 클립 기본 편집(회전 90°)도 내보내기에
+  await a.E('S.clips[0].fx.rot = 90');
+  r = await exportNow(a);
+  expect([at(0.5, 320, 60), at(0.5, 320, 300)]).toEqual(['red', 'blue']);
+
+  // 프로젝트 저장 → 새 창에서 열면 이미지도 경로로 자동 연결, 기본 길이·편집 유지
+  await a.E('S.clips[0].dur = 3.5');
+  const d = await a.E('projectData()');
+  expect(d.paths.clips['halves.png']).toBe(FX('halves.png'));
+  const f = path.join(desk.tmp, 'img.beatproj.json'); fs.writeFileSync(f, JSON.stringify(d));
+  const b = await desk.launch();
+  await b.page.setInputFiles('#fProj', f);
+  await b.page.waitForFunction(() => S.clips.length === 3 && S.clips.every(c => c.dur > 0) && S.tracks[0].every(g => g.src), null, { timeout: 30_000 });
+  expect(await b.E('[S.clips[0].image, S.clips[0].dur, S.clips[0].fx.rot, !!S.clips[0].bmp]')).toEqual([true, 3.5, 90, true]);
+});

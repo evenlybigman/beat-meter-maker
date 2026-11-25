@@ -41,4 +41,10 @@ ff('-f', 'lavfi', '-i', 'color=c=red:s=160x180:r=30:d=3', '-f', 'lavfi', '-i', '
 # 서로 다른 클립 10개 (10초, 작은 크기) — 클립이 많을 때 미리보기 재생 검사용
 for i in range(1, 11):
     ff('-f', 'lavfi', '-i', f'testsrc2=s=320x180:r=30:d=10', '-vf', f'hue=h={i * 36}', '-pix_fmt', 'yuv420p', '-g', '30', '-b:v', '50k', os.path.join(D, f'm{i}.mp4'))
+# 이미지 클립 검사용: 왼쪽 빨강·오른쪽 파랑 PNG, 초록 JPG, 빨강→파랑 움직이는 GIF(첫 장면 빨강), 읽을 수 없는 HEIC
+from PIL import Image
+im = Image.new('RGB', (320, 180), (255, 0, 0)); im.paste((0, 0, 255), (160, 0, 320, 180)); im.save(os.path.join(D, 'halves.png'))
+Image.new('RGB', (200, 200), (0, 200, 0)).save(os.path.join(D, 'green.jpg'), quality=90)
+Image.new('RGB', (64, 64), (255, 0, 0)).save(os.path.join(D, 'anim.gif'), save_all=True, append_images=[Image.new('RGB', (64, 64), (0, 0, 255))], duration=300, loop=0)
+open(os.path.join(D, 'photo.heic'), 'wb').write(b'\x00\x00\x00\x18ftypheic' + b'\x00' * 64)
 print('ok')

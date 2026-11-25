@@ -22,6 +22,8 @@ export interface Clip {
   path?: string;
   /** 클립 기본 편집 — 이 클립으로 만든 조각 전부에 적용 (조각마다 준 회전·반전·확대는 그 위에 더해짐) */
   fx?: ClipFx;
+  /** 이미지 클립: dur은 타임라인에 넣을 기본 길이, bmp는 그릴 그림 (움직이는 GIF는 첫 장면) */
+  image?: boolean; bmp?: ImageBitmap;
 }
 /** 클립 기본 편집 값 */
 export interface ClipFx {
@@ -97,7 +99,7 @@ export interface ProjectFile {
   set: Partial<Settings>;
   songs: string[];
   clips: string[];
-  trims: { name: string; inPt: number; outPt: number; fx?: ClipFx }[];
+  trims: { name: string; inPt: number; outPt: number; fx?: ClipFx; /** 이미지 기본 길이 */ len?: number }[];
   /** 음악 트랙 */
   audio: ItemFile[];
   /** 화면마다 영상 트랙 */

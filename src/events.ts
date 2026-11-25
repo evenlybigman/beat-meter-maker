@@ -6,7 +6,8 @@ import { btnHtml } from './icons';
 import { ensureAudio, musicGain, now, projDur, seek, setDuration, updateDurUI } from './audio';
 import { R, applyPattern, applyRange, generateAll, getRange, hit, nearestBeat, setA, setB, setPreset, startRec, stopRec, syncBeatInputs, tap } from './beats';
 import { SND, addSoundFile, beatGain, curSnd, grabPreview, grabSave, previewSnd, renderSndUI, setGrabStart, setSndOn } from './beatsound';
-import { addClips, removeSelectedClips } from './clips';
+import { addClips, clampImgLen, removeSelectedClips, renderClipList } from './clips';
+import { fxTargets } from './clipFxUi';
 import { randomFill } from './fill';
 import { cancelExport, exportVideo, seekUi, togglePlay } from './player';
 import { loadProject, newProject, saveProject } from './project';
@@ -57,6 +58,13 @@ document.querySelectorAll<HTMLElement>('.tabs button').forEach(b => b.onclick = 
   document.querySelectorAll<HTMLElement>('.tab').forEach(p => p.classList.toggle('on', p.id === b.dataset.tab));
 });
 // 클립 사용 구간
+// 이미지 기본 길이: 고른 이미지 클립 모두에
+$('#imgLen').onchange = (e: InEv) => {
+  const v = clampImgLen(e.target.value), cs = fxTargets().filter(c => c.image);
+  for (const c of cs) c.dur = v;
+  e.target.value = v.toFixed(1); renderClipList();
+  if (cs.length > 1) toast(`이미지 ${cs.length}개의 기본 길이를 ${v.toFixed(1)}초로 바꿨습니다`);
+};
 $('#clipSelClear').onclick = () => selectClip(S.selClip);
 $('#clipSelDel').onclick = removeSelectedClips;
 $('#trimIn').onchange = (e: InEv) => setTrim('in', e.target.value);
